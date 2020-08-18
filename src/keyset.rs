@@ -54,10 +54,10 @@ impl Clone for JwtKey {
 
 #[derive(Clone)]
 pub struct KeyStore {
-    key_url: String,
-    keys: Vec<JwtKey>,
-    load_time: Option<SystemTime>,
-    expiry_time: Option<SystemTime>,
+    pub(crate) key_url: String,
+    pub(crate) keys: Vec<JwtKey>,
+    pub(crate) load_time: Option<SystemTime>,
+    pub(crate) expiry_time: Option<SystemTime>,
 }
 
 impl KeyStore {
@@ -98,7 +98,7 @@ impl KeyStore {
 
         let mut response = reqwest::get(&self.key_url).await.map_err(|_| err_con("Could not download JWKS"))?;
         let result = KeyStore::cache_max_age(&mut response);
-        let jwks = response.json::<JwtKeys>().await.map_err(|_| err_int("Failed to parse keys"))?;
+        let mut jwks = response.json::<JwtKeys>().await.map_err(|_| err_int("Failed to parse keys"))?;
         
         let load_time = SystemTime::now();
         self.load_time = Some(load_time);
@@ -108,7 +108,7 @@ impl KeyStore {
             self.expiry_time = Some(expire);
         }
 
-        self.keys.append(&jwks.keys);
+        self.keys.append(&mut jwks.keys);
 
         Ok(())
     }
@@ -220,7 +220,7 @@ impl KeyStore {
     ///
     /// None if keys do not have an expiration time
     pub fn keys_expired(&self) -> Option<bool> {
-        match self.expire_time {
+        match self.expiry_time {
             Some(expire) => Some(expire <= SystemTime::now()),
             None => None,
         }
@@ -233,8 +233,8 @@ impl KeyStore {
     }
 
     /// Get the time at which the keys are considered expired
-    pub fn expires_time(&self) -> Option<SystemTime> {
-        self.expires_time
+    pub fn expiry_time(&self) -> Option<SystemTime> {
+        self.expiry_time
     }
 
     /// Returns `Option<true>` if keys should be refreshed based on the given `current_time`.
@@ -242,8 +242,8 @@ impl KeyStore {
     /// None is returned if the key store does not have a refresh time available. For example, the
     /// `load_keys` function was not called or the HTTP server did not provide a  
     pub fn should_refresh_time(&self, current_time: SystemTime) -> Option<bool> {
-        if let Some(expired_time) = self.expired_time {
-            return Some(expired_time - 1200 <= current_time);
+        if let Some(expired_time) = self.expiry_time {
+            return Some((expired_time - std::time::Duration::from_secs(1200)) <= current_time);
         }
 
         None

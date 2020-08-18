@@ -2,16 +2,13 @@ pub mod error;
 pub mod jwt;
 pub mod keyset;
 
-///JWKS client library [![Build Status](https://travis-ci.com/jfbilodeau/jwks-client.svg?branch=master)](https://travis-ci.com/jfbilodeau/jwks-client) [![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-///===
-///JWKS-Client is a library written in Rust to decode and validate JWT tokens using a JSON Web Key Store.
-///
-///I created this library specifically to decode GCP/Firebase JWT but should be useable with little to no modification. Contact me to propose support for different JWKS key store.
-///
-///TODO:
-///* More documentation :P
-///* Extract expiration time of keys from HTTP request
-///* Automatically refresh keys in background
+/// JWKS client library [![Build Status](https://travis-ci.com/jfbilodeau/jwks-client.svg?branch=master)](https://travis-ci.com/jfbilodeau/jwks-client) [![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+/// ===
+/// JWKS-Client is a library written in Rust to decode and validate JWT tokens using a JSON Web Key Store.
+/// 
+/// I created this library specifically to decode GCP/Firebase JWT but should be useable with little to no modification. Contact me to propose support for different JWKS key store.
+/// 
+
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, SystemTime};
@@ -56,16 +53,16 @@ mod tests {
     fn test_new_with_url() {
         let url = KEY_URL;
 
-        let key_set = tokio_test::block_on(KeyStore::new_from(url)).unwrap();
+        let key_set = tokio_test::block_on(KeyStore::new_from(url.into())).unwrap();
 
-        assert_eq!(url, key_set.key_set_url());
+        assert_eq!(url, key_set.key_url);
     }
 
     #[test]
     fn test_refresh_keys() {
-        let key_set = tokio_test::block_on(KeyStore::new_from(KEY_URL)).unwrap();
+        let key_set = tokio_test::block_on(KeyStore::new_from(KEY_URL.into())).unwrap();
 
-        assert_eq!(KEY_URL, key_set.key_set_url());
+        assert_eq!(KEY_URL, key_set.key_url);
         assert!(key_set.keys_len() > 0);
 
         assert!(key_set.key_by_id("1").is_some());
@@ -298,7 +295,7 @@ mod tests {
         assert_eq!(None, key_store.last_load_time());
         assert_eq!(None, key_store.keys_expired());
 
-        let key_store = tokio_test::block_on(KeyStore::new_from(KEY_URL)).unwrap();
+        let key_store = tokio_test::block_on(KeyStore::new_from(KEY_URL.into())).unwrap();
 
         assert!(key_store.last_load_time().is_some());
         assert!(key_store.keys_expired().is_some());
@@ -309,31 +306,20 @@ mod tests {
     fn test_should_refresh() {
         let mut key_store = KeyStore::new();
 
-        assert_eq!(0.5, key_store.refresh_interval());
-        assert_eq!(None, key_store.expire_time());
+        assert_eq!(None, key_store.expiry_time());
         assert_eq!(None, key_store.keys_expired());
         assert_eq!(None, key_store.last_load_time());
         assert_eq!(None, key_store.should_refresh());
 
-        key_store.set_refresh_interval(0.75);
-        assert_eq!(0.75, key_store.refresh_interval());
-
-        key_store.set_refresh_interval(0.5);
-
-        tokio_test::block_on(key_store.load_keys_from(KEY_URL)).unwrap();
-
-        assert_eq!(0.5, key_store.refresh_interval());
-        assert_ne!(None, key_store.expire_time());
+        assert_ne!(None, key_store.expiry_time());
         assert_ne!(None, key_store.keys_expired());
         assert_ne!(None, key_store.last_load_time());
         assert_eq!(Some(false), key_store.should_refresh());
 
-        let key_duration = key_store.expire_time().unwrap().duration_since(key_store.load_time().unwrap());
+        let key_duration = key_store.expiry_time().unwrap().duration_since(key_store.load_time().unwrap());
         let key_duration = key_duration.unwrap();
 
         let refresh_time = key_store.load_time().unwrap() + (key_duration / 2);
-
-        assert_eq!(Some(refresh_time), key_store.refresh_time());
 
         // Boundary test
         let just_before = refresh_time - Duration::new(1, 0);
