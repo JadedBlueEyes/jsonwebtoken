@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_should_refresh() {
-        let mut key_store = KeyStore::new();
+        let key_store = KeyStore::new();
 
         assert_eq!(None, key_store.expiry_time());
         assert_eq!(None, key_store.keys_expired());
