@@ -2,7 +2,7 @@ use std::time::{Duration, SystemTime};
 
 use base64::{decode_config, URL_SAFE_NO_PAD};
 use regex::Regex;
-use reqwest;
+
 use reqwest::Response;
 use ring::signature::{RsaPublicKeyComponents, RSA_PKCS1_2048_8192_SHA256};
 use serde::{
@@ -147,7 +147,7 @@ impl KeyStore {
     }
 
     fn decode_segments(&self, token: &str) -> Result<(Header, Payload, Signature, HeaderBody), Error> {
-        let raw_segments: Vec<&str> = token.split(".").collect();
+        let raw_segments: Vec<&str> = token.split('.').collect();
         if raw_segments.len() != 3 {
             return Err(err_inv("JWT does not have 3 segments"));
         }
