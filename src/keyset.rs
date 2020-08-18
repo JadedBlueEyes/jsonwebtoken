@@ -52,13 +52,12 @@ impl Clone for JwtKey {
     }
 }
 
+#[derive(Clone)]
 pub struct KeyStore {
     key_url: String,
     keys: Vec<JwtKey>,
-    refresh_interval: f64,
     load_time: Option<SystemTime>,
-    expire_time: Option<SystemTime>,
-    refresh_time: Option<SystemTime>,
+    expiry_time: Option<SystemTime>,
 }
 
 impl KeyStore {
@@ -66,19 +65,17 @@ impl KeyStore {
         let key_store = KeyStore {
             key_url: "".to_owned(),
             keys: vec![],
-            refresh_interval: 0.5,
             load_time: None,
-            expire_time: None,
-            refresh_time: None,
+            expiry_time: None,
         };
 
         key_store
     }
 
-    pub async fn new_from(jkws_url: &str) -> Result<KeyStore, Error> {
+    pub async fn new_from(jkws_url: String) -> Result<KeyStore, Error> {
         let mut key_store = KeyStore::new();
 
-        key_store.key_url = jkws_url.to_string();
+        key_store.key_url = jkws_url;
 
         key_store.load_keys().await?;
 
@@ -89,16 +86,8 @@ impl KeyStore {
         self.keys.clear();
     }
 
-    pub fn key_set_url(&self) -> &str {
+    pub fn key_url(&self) -> &str {
         &self.key_url
-    }
-
-    pub async fn load_keys_from(&mut self, url: &str) -> Result<(), Error> {
-        self.key_url = url.to_owned();
-
-        self.load_keys().await?;
-
-        Ok(())
     }
 
     pub async fn load_keys(&mut self) -> Result<(), Error> {
@@ -108,23 +97,18 @@ impl KeyStore {
         }
 
         let mut response = reqwest::get(&self.key_url).await.map_err(|_| err_con("Could not download JWKS"))?;
-
+        let result = KeyStore::cache_max_age(&mut response);
+        let jwks = response.json::<JwtKeys>().await.map_err(|_| err_int("Failed to parse keys"))?;
+        
         let load_time = SystemTime::now();
         self.load_time = Some(load_time);
 
-        let result = KeyStore::cache_max_age(&mut response);
-
         if let Ok(value) = result {
             let expire = load_time + Duration::new(value, 0);
-            self.expire_time = Some(expire);
-            let refresh_time = (value as f64 * self.refresh_interval) as u64;
-            let refresh = load_time + Duration::new(refresh_time, 0);
-            self.refresh_time = Some(refresh);
+            self.expiry_time = Some(expire);
         }
 
-        let jwks = response.json::<JwtKeys>().await.map_err(|_| err_int("Failed to parse keys"))?;
-
-        jwks.keys.iter().for_each(|k| self.add_key(k));
+        self.keys.append(&jwks.keys);
 
         Ok(())
     }
@@ -242,20 +226,6 @@ impl KeyStore {
         }
     }
 
-    /// Specifies the interval (as a fraction) when the key store should refresh it's key.
-    ///
-    /// The default is 0.5, meaning that keys should be refreshed when we are halfway through the expiration time (similar to DHCP).
-    ///
-    /// This method does _not_ update the refresh time. Call `load_keys` to force an update on the refresh time property.
-    pub fn set_refresh_interval(&mut self, interval: f64) {
-        self.refresh_interval = interval;
-    }
-
-    /// Get the current fraction time to check for token refresh time.
-    pub fn refresh_interval(&self) -> f64 {
-        self.refresh_interval
-    }
-
     /// The time at which the keys were loaded
     /// None if the keys were never loaded via `load_keys` or `load_keys_from`.
     pub fn load_time(&self) -> Option<SystemTime> {
@@ -263,13 +233,8 @@ impl KeyStore {
     }
 
     /// Get the time at which the keys are considered expired
-    pub fn expire_time(&self) -> Option<SystemTime> {
-        self.expire_time
-    }
-
-    /// time at which keys should be refreshed.
-    pub fn refresh_time(&self) -> Option<SystemTime> {
-        self.refresh_time
+    pub fn expires_time(&self) -> Option<SystemTime> {
+        self.expires_time
     }
 
     /// Returns `Option<true>` if keys should be refreshed based on the given `current_time`.
@@ -277,8 +242,8 @@ impl KeyStore {
     /// None is returned if the key store does not have a refresh time available. For example, the
     /// `load_keys` function was not called or the HTTP server did not provide a  
     pub fn should_refresh_time(&self, current_time: SystemTime) -> Option<bool> {
-        if let Some(refresh_time) = self.refresh_time {
-            return Some(refresh_time <= current_time);
+        if let Some(expired_time) = self.expired_time {
+            return Some(expired_time - 1200 <= current_time);
         }
 
         None
