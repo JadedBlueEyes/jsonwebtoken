@@ -1,6 +1,7 @@
 pub mod error;
 pub mod jwt;
 pub mod keyset;
+pub mod cache;
 
 /// JWKS client library [![Build Status](https://travis-ci.com/jfbilodeau/jwks-client.svg?branch=master)](https://travis-ci.com/jfbilodeau/jwks-client) [![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 /// ===
@@ -286,46 +287,5 @@ mod tests {
         let time = SystemTime::UNIX_EPOCH + Duration::new(TIME_NBF - 1, 0);
 
         assert!(jwk.early_time(time).unwrap());
-    }
-
-    #[test]
-    fn test_keys_expired() {
-        let key_store = KeyStore::new();
-
-        assert_eq!(None, key_store.last_load_time());
-        assert_eq!(None, key_store.keys_expired());
-
-        let key_store = tokio_test::block_on(KeyStore::new_from(KEY_URL.into())).unwrap();
-
-        assert!(key_store.last_load_time().is_some());
-        assert!(key_store.keys_expired().is_some());
-        assert_eq!(false, key_store.keys_expired().unwrap());
-    }
-
-    #[test]
-    fn test_should_refresh() {
-        let key_store = KeyStore::new();
-
-        assert_eq!(None, key_store.expiry_time());
-        assert_eq!(None, key_store.keys_expired());
-        assert_eq!(None, key_store.last_load_time());
-        assert_eq!(None, key_store.should_refresh());
-
-        assert_ne!(None, key_store.expiry_time());
-        assert_ne!(None, key_store.keys_expired());
-        assert_ne!(None, key_store.last_load_time());
-        assert_eq!(Some(false), key_store.should_refresh());
-
-        let key_duration = key_store.expiry_time().unwrap().duration_since(key_store.load_time().unwrap());
-        let key_duration = key_duration.unwrap();
-
-        let refresh_time = key_store.load_time().unwrap() + (key_duration / 2);
-
-        // Boundary test
-        let just_before = refresh_time - Duration::new(1, 0);
-        assert_eq!(Some(false), key_store.should_refresh_time(just_before));
-
-        let just_after = refresh_time + Duration::new(1, 0);
-        assert_eq!(Some(true), key_store.should_refresh_time(just_after));
     }
 }
