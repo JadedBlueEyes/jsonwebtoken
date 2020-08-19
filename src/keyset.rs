@@ -56,20 +56,27 @@ impl Clone for JwtKey {
 pub struct KeyStore {
     pub(crate) key_url: String,
     pub(crate) keys: Vec<JwtKey>,
-    pub(crate) load_time: Option<SystemTime>,
-    pub(crate) expiry_time: Option<SystemTime>,
 }
 
+pub static KEY_CACHE: ::cached::once_cell::sync::Lazy<
+    ::cached::async_mutex::Mutex<crate::cache::ExpiringCache<String, Vec<JwtKey>>>,
+> = ::cached::once_cell::sync::Lazy::new(|| {
+    ::cached::async_mutex::Mutex::new(crate::cache::ExpiringCache::with_lifespan(Duration::from_secs(600)))
+});
+
+impl Default for KeyStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl KeyStore {
     pub fn new() -> KeyStore {
-        let key_store = KeyStore {
+        KeyStore {
             key_url: "".to_owned(),
             keys: vec![],
-            load_time: None,
-            expiry_time: None,
-        };
-
-        key_store
+        }
     }
 
     pub async fn new_from(jkws_url: String) -> Result<KeyStore, Error> {
@@ -77,7 +84,7 @@ impl KeyStore {
 
         key_store.key_url = jkws_url;
 
-        key_store.load_keys().await?;
+        key_store.reload_keys().await?;
 
         Ok(key_store)
     }
@@ -90,25 +97,40 @@ impl KeyStore {
         &self.key_url
     }
 
-    pub async fn load_keys(&mut self) -> Result<(), Error> {
+    async fn get_keys(url: &str) -> Result<Vec<JwtKey>, Error> {
+        let key = (*url).to_string();
+        {
+            let mut cache = KEY_CACHE.lock().await;
+            if let Some(result) = cache.cache_get(&key) {
+                return Ok(result.clone());
+            }
+        }
+
         #[derive(Deserialize)]
         pub struct JwtKeys {
             pub keys: Vec<JwtKey>,
         }
 
-        let mut response = reqwest::get(&self.key_url).await.map_err(|_| err_con("Could not download JWKS"))?;
-        let result = KeyStore::cache_max_age(&mut response);
-        let mut jwks = response.json::<JwtKeys>().await.map_err(|_| err_int("Failed to parse keys"))?;
-        
-        let load_time = SystemTime::now();
-        self.load_time = Some(load_time);
+        let mut response = reqwest::get(url).await.map_err(|_| err_con("Could not download JWKS"))?;
+        let max_age_result = KeyStore::cache_max_age(&mut response);
+        let keys = response.json::<JwtKeys>().await.map_err(|_| err_int("Failed to parse keys"))?.keys;
 
-        if let Ok(value) = result {
-            let expire = load_time + Duration::new(value, 0);
-            self.expiry_time = Some(expire);
+        let duration;
+        if let Ok(value) = max_age_result {
+            duration = Duration::new(value, 0);
+        } else {
+            duration = Duration::new(600, 0);
         }
 
-        self.keys.append(&mut jwks.keys);
+        let mut cache = KEY_CACHE.lock().await;
+        cache.cache_set_with_lifespan(key, duration, keys.clone());
+
+        Ok(keys)
+    }
+
+    pub async fn reload_keys(&mut self) -> Result<(), Error> {
+
+        self.keys = KeyStore::get_keys(&self.key_url).await?;
 
         Ok(())
     }
@@ -156,8 +178,8 @@ impl KeyStore {
         let payload_segment = raw_segments[1];
         let signature_segment = raw_segments[2].to_string();
 
-        let header = Header::new(decode_segment::<Value>(header_segment).or(Err(err_hea("Failed to decode header")))?);
-        let payload = Payload::new(decode_segment::<Value>(payload_segment).or(Err(err_pay("Failed to decode payload")))?);
+        let header = Header::new(decode_segment::<Value>(header_segment).map_err(|_| err_hea("Failed to decode header"))?);
+        let payload = Payload::new(decode_segment::<Value>(payload_segment).map_err(|_| err_pay("Failed to decode payload"))?);
 
         let body = format!("{}.{}", header_segment, payload_segment);
 
@@ -177,12 +199,12 @@ impl KeyStore {
             return Err(err_inv("Unsupported algorithm"));
         }
 
-        let kid = header.kid().ok_or(err_key("No key id"))?;
+        let kid = header.kid().ok_or_else(|| err_key("No key id"))?;
 
-        let key = self.key_by_id(kid).ok_or(err_key("JWT key does not exists"))?;
+        let key = self.key_by_id(kid).ok_or_else(|| err_key("JWT key does not exists"))?;
 
-        let e = decode_config(&key.e, URL_SAFE_NO_PAD).or(Err(err_cer("Failed to decode exponent")))?;
-        let n = decode_config(&key.n, URL_SAFE_NO_PAD).or(Err(err_cer("Failed to decode modulus")))?;
+        let e = decode_config(&key.e, URL_SAFE_NO_PAD).map_err(|_| err_cer("Failed to decode exponent"))?;
+        let n = decode_config(&key.n, URL_SAFE_NO_PAD).map_err(|_| err_cer("Failed to decode modulus"))?;
 
         verify_signature(&e, &n, &body, &signature)?;
 
@@ -211,68 +233,23 @@ impl KeyStore {
         self.verify_time(token, SystemTime::now())
     }
 
-    /// Time at which the keys were last refreshed
-    pub fn last_load_time(&self) -> Option<SystemTime> {
-        self.load_time
-    }
-
-    /// True if the keys are expired and should be refreshed
-    ///
-    /// None if keys do not have an expiration time
-    pub fn keys_expired(&self) -> Option<bool> {
-        match self.expiry_time {
-            Some(expire) => Some(expire <= SystemTime::now()),
-            None => None,
-        }
-    }
-
-    /// The time at which the keys were loaded
-    /// None if the keys were never loaded via `load_keys` or `load_keys_from`.
-    pub fn load_time(&self) -> Option<SystemTime> {
-        self.load_time
-    }
-
-    /// Get the time at which the keys are considered expired
-    pub fn expiry_time(&self) -> Option<SystemTime> {
-        self.expiry_time
-    }
-
-    /// Returns `Option<true>` if keys should be refreshed based on the given `current_time`.
-    ///
-    /// None is returned if the key store does not have a refresh time available. For example, the
-    /// `load_keys` function was not called or the HTTP server did not provide a  
-    pub fn should_refresh_time(&self, current_time: SystemTime) -> Option<bool> {
-        if let Some(expired_time) = self.expiry_time {
-            return Some((expired_time - std::time::Duration::from_secs(1200)) <= current_time);
-        }
-
-        None
-    }
-
-    /// Returns `Option<true>` if keys should be refreshed based on the system time.
-    ///
-    /// None is returned if the key store does not have a refresh time available. For example, the
-    /// `load_keys` function was not called or the HTTP server did not provide a  
-    pub fn should_refresh(&self) -> Option<bool> {
-        self.should_refresh_time(SystemTime::now())
-    }
 }
 
-fn verify_signature(e: &Vec<u8>, n: &Vec<u8>, message: &str, signature: &str) -> Result<(), Error> {
+fn verify_signature(e: &[u8], n: &[u8], message: &str, signature: &str) -> Result<(), Error> {
     let pkc = RsaPublicKeyComponents { e, n };
 
     let message_bytes = &message.as_bytes().to_vec();
-    let signature_bytes = decode_config(&signature, URL_SAFE_NO_PAD).or(Err(err_sig("Could not base64 decode signature")))?;
+    let signature_bytes = decode_config(&signature, URL_SAFE_NO_PAD).map_err(|_| err_sig("Could not base64 decode signature"))?;
 
     let result = pkc.verify(&RSA_PKCS1_2048_8192_SHA256, &message_bytes, &signature_bytes);
 
-    result.or(Err(err_cer("Signature does not match certificate")))
+    result.map_err(|_| err_cer("Signature does not match certificate"))
 }
 
 fn decode_segment<T: DeserializeOwned>(segment: &str) -> Result<T, Error> {
-    let raw = decode_config(segment, base64::URL_SAFE_NO_PAD).or(Err(err_inv("Failed to decode segment")))?;
+    let raw = decode_config(segment, base64::URL_SAFE_NO_PAD).map_err(|_| err_inv("Failed to decode segment"))?;
     let slice = String::from_utf8_lossy(&raw);
-    let decoded: T = serde_json::from_str(&slice).or(Err(err_inv("Failed to decode segment")))?;
+    let decoded: T = serde_json::from_str(&slice).map_err(|_| err_inv("Failed to decode segment"))?;
 
     Ok(decoded)
 }
