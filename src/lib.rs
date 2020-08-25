@@ -1,7 +1,8 @@
 pub mod error;
 pub mod jwt;
 pub mod keyset;
-pub mod cache;
+
+use joels_caches::expiring_cache as cache;
 
 /// JWKS client library [![Build Status](https://travis-ci.com/jfbilodeau/jwks-client.svg?branch=master)](https://travis-ci.com/jfbilodeau/jwks-client) [![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 /// ===
