@@ -388,6 +388,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "501266b7edd0174f8530248f87f99c88fbe60ca4ef3dd486835b8d8d53136f7f"
 
 [[package]]
+name = "joels-caches"
+version = "0.1.0"
+source = "git+https://github.com/joelellis/joels-caches.git#1f454bc4acf30f5be48c9d1453306dfa8c786684"
+
+[[package]]
 name = "js-sys"
 version = "0.3.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -402,6 +407,7 @@ version = "0.2.0"
 dependencies = [
  "base64",
  "cached",
+ "joels-caches",
  "regex",
  "reqwest",
  "ring",
