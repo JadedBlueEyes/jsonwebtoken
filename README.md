@@ -38,8 +38,7 @@ Features
 * Determine when keys should be refreshed
   
 ### JWT: 
-* Transfer header and payload in user-defined struct. See the example below[^1]
-* Accessor for standard header and payload fields
+* Uses the crate [jsonwebtoken](https://crates.io/crates/jsonwebtoken) and provides the decoding features that allows with an RSA key type.
 
 
 JWKS-Client was create specifically to decode GCP/Firebase JWT but should be useable with little to no modification. Contact me to propose support for different JWKS key store. Feedback, suggestions, complaints and criticism is appreciated.
@@ -50,28 +49,47 @@ Basic Usage
 The following demonstrates how to load a set of keys from an HTTP address and verify a JWT token using those keys:
 
 ```rust
-use jwks_client::error::Error;
-use jwks_client::keyset::KeyStore;
+use jwks_client::Error;
+use jwks_client::KeyStore;
+use serde::Deserialize;
 
 #[tokio::main]
 async fn main() {
     let jkws_url = "https://raw.githubusercontent.com/jfbilodeau/jwks-client/0.1.8/test/test-jwks.json";
 
-    let key_set = KeyStore::new_from(jkws_url).await.unwrap();
+    let key_set = KeyStore::new_from(jkws_url.to_owned()).await.unwrap();
 
     // ...
 
     let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyJuYW1lIjoiQWRhIExvdmVsYWNlIiwiaXNzIjoiaHR0cHM6Ly9jaHJvbm9nZWFycy5jb20vdGVzdCIsImF1ZCI6InRlc3QiLCJhdXRoX3RpbWUiOjEwMCwidXNlcl9pZCI6InVpZDEyMyIsInN1YiI6InNidTEyMyIsImlhdCI6MjAwLCJleHAiOjUwMCwibmJmIjozMDAsImVtYWlsIjoiYWxvdmVsYWNlQGNocm9ub2dlYXJzLmNvbSJ9.eTQnwXrri_uY55fS4IygseBzzbosDM1hP153EZXzNlLH5s29kdlGt2mL_KIjYmQa8hmptt9RwKJHBtw6l4KFHvIcuif86Ix-iI2fCpqNnKyGZfgERV51NXk1THkgWj0GQB6X5cvOoFIdHa9XvgPl_rVmzXSUYDgkhd2t01FOjQeeT6OL2d9KdlQHJqAsvvKVc3wnaYYoSqv2z0IluvK93Tk1dUBU2yWXH34nX3GAVGvIoFoNRiiFfZwFlnz78G0b2fQV7B5g5F8XlNRdD1xmVZXU8X2-xh9LqRpnEakdhecciFHg0u6AyC4c00rlo_HBb69wlXajQ3R4y26Kpxn7HA";
 
-    match key_set.verify(token) {
-        Ok(jwt) => {
-            println!("name={}", jwt.payload().get_str("name").unwrap());
+    #[derive(Deserialize)]
+    struct Claims {
+        iss: String,
+        name: String,
+    }
+
+    let validation = jsonwebtoken::Validation {
+        validate_nbf: true,
+        validate_exp: true,
+        algorithms: vec![jsonwebtoken::Algorithm::RS256], // only the RSA keytype is currently supported
+        leeway: 0,
+        sub: None,
+        aud: None,
+        iss: Some("https://chronogears.com/test".to_owned()),
+    };
+
+    match key_set.verify(token, &validation) {
+        Ok(jsonwebtoken::TokenData { header: _, claims: Claims { iss, name } }) => {
+            println!("iss={}", iss);
+            println!("name={}", name);
         }
-        Err(Error { msg, typ: _ }) => {
-            eprintln!("Could not verify token. Reason: {}", msg);
+        Err(Error { msg, kind }) => {
+            eprintln!("Could not verify token. Reason: {} {:?}", msg, kind);
         }
     }
 }
+
 ```
 
 JWKS-Client can be use to simply decode a JWT token without validating the signature.
@@ -107,91 +125,54 @@ fn main() {
 JWKS-Client offers descriptive error results:
 
 ```rust
-use jwks_client::error::{Error, Type};
-use jwks_client::keyset::KeyStore;
+use jwks_client::Error;
+use jwks_client::KeyStore;
+use serde::Deserialize;
 
-#[rustfmt::skip]
 #[tokio::main]
 async fn main() {
-    let url = "https://raw.githubusercontent.com/jfbilodeau/jwks-client/0.1.8/test/test-jwks.json";
+    let jkws_url = "https://raw.githubusercontent.com/jfbilodeau/jwks-client/0.1.8/test/test-jwks.json";
+
+    let key_set = KeyStore::new_from(jkws_url.to_owned()).await.unwrap();
+
+    // ...
+
     let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyJuYW1lIjoiQWRhIExvdmVsYWNlIiwiaXNzIjoiaHR0cHM6Ly9jaHJvbm9nZWFycy5jb20vdGVzdCIsImF1ZCI6InRlc3QiLCJhdXRoX3RpbWUiOjEwMCwidXNlcl9pZCI6InVpZDEyMyIsInN1YiI6InNidTEyMyIsImlhdCI6MjAwLCJleHAiOjUwMCwibmJmIjozMDAsImVtYWlsIjoiYWxvdmVsYWNlQGNocm9ub2dlYXJzLmNvbSJ9.eTQnwXrri_uY55fS4IygseBzzbosDM1hP153EZXzNlLH5s29kdlGt2mL_KIjYmQa8hmptt9RwKJHBtw6l4KFHvIcuif86Ix-iI2fCpqNnKyGZfgERV51NXk1THkgWj0GQB6X5cvOoFIdHa9XvgPl_rVmzXSUYDgkhd2t01FOjQeeT6OL2d9KdlQHJqAsvvKVc3wnaYYoSqv2z0IluvK93Tk1dUBU2yWXH34nX3GAVGvIoFoNRiiFfZwFlnz78G0b2fQV7B5g5F8XlNRdD1xmVZXU8X2-xh9LqRpnEakdhecciFHg0u6AyC4c00rlo_HBb69wlXajQ3R4y26Kpxn7HA";
 
-    let key_set = KeyStore::new_from(url).await.unwrap();
-
-    match key_set.verify(token) {
-        Ok(jwt) => {
-            println!("name={}", jwt.payload().get_str("name").unwrap());
-        }
-        Err(Error {
-            msg,
-            typ: Type::Header,
-        }) => {
-            eprintln!("Problem with header. Message: {}", msg);
-        }
-        Err(Error {
-            msg,
-            typ: Type::Payload,
-        }) => {
-            eprintln!("Problem with payload. Message: {}", msg);
-        }
-        Err(Error {
-            msg,
-            typ: Type::Signature,
-        }) => {
-            eprintln!("Problem with signature. Message: {}", msg);
-        }
-        Err(Error {
-            msg: _,
-            typ: Type::Expired,
-        }) => {
-            eprintln!("Token is expired.");
-        }
-        Err(Error {
-            msg: _,
-            typ: Type::Early,
-        }) => {
-            eprintln!("Too early to use token.");
-        }
-        Err(e) => {
-            eprintln!("Something else went wrong. Message {:?}", e);
-        }
-    }
-}
-```
-
-[^1] JWKS-Client can decode a JWT payload (claims) into a struct:
-
-```rust
-use serde_derive::Deserialize;
-
-use jwks_client::keyset::KeyStore;
-
-fn main() {
     #[derive(Deserialize)]
-    pub struct MyClaims {
-        pub iss: String,
-        pub name: String,
-        pub email: String,
+    struct Claims {
+        iss: String,
+        name: String,
     }
 
-    let url = "https://raw.githubusercontent.com/jfbilodeau/jwks-client/0.1.8/test/test-jwks.json";
+    let validation = jsonwebtoken::Validation {
+        validate_nbf: true,
+        validate_exp: true,
+        algorithms: vec![jsonwebtoken::Algorithm::RS256], // only the RSA keytype is currently supported
+        leeway: 0,
+        sub: None,
+        aud: None,
+        iss: Some("https://chronogears.com/test".to_owned()),
+    };
 
-    let key_store = KeyStore::new_from(url).unwrap();
-
-    let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyJuYW1lIjoiQWRhIExvdmVsYWNlIiwiaXNzIjoiaHR0cHM6Ly9jaHJvbm9nZWFycy5jb20vdGVzdCIsImF1ZCI6InRlc3QiLCJhdXRoX3RpbWUiOjEwMCwidXNlcl9pZCI6InVpZDEyMyIsInN1YiI6InNidTEyMyIsImlhdCI6MjAwLCJleHAiOjUwMCwibmJmIjozMDAsImVtYWlsIjoiYWxvdmVsYWNlQGNocm9ub2dlYXJzLmNvbSJ9.eTQnwXrri_uY55fS4IygseBzzbosDM1hP153EZXzNlLH5s29kdlGt2mL_KIjYmQa8hmptt9RwKJHBtw6l4KFHvIcuif86Ix-iI2fCpqNnKyGZfgERV51NXk1THkgWj0GQB6X5cvOoFIdHa9XvgPl_rVmzXSUYDgkhd2t01FOjQeeT6OL2d9KdlQHJqAsvvKVc3wnaYYoSqv2z0IluvK93Tk1dUBU2yWXH34nX3GAVGvIoFoNRiiFfZwFlnz78G0b2fQV7B5g5F8XlNRdD1xmVZXU8X2-xh9LqRpnEakdhecciFHg0u6AyC4c00rlo_HBb69wlXajQ3R4y26Kpxn7HA";
-
-    let jwt = key_store.decode(token).unwrap();
-
-    let claims = jwt.payload().into::<MyClaims>().unwrap();
-
-    println!("Issuer: {}", claims.iss);
-    println!("Name: {}", claims.name);
-    println!("Email: {}", claims.email);
+    match key_set.verify(token, &validation) {
+        Ok(jsonwebtoken::TokenData { header: _, claims: Claims { iss, name } }) => {
+            println!("iss={}", iss);
+            println!("name={}", name);
+        }
+        Err(Error { msg, kind }) => {
+            eprintln!("Could not verify token. Reason: {} {:?}", msg, kind);
+        }
+    }
 }
+
 ```
+
 
 History
 --- 
+* WIP
+  * See git log
 * 0.2.0
   * **Breaking Change**: Support for async/await (Thanks to [Genna Wingert](htps://github.com/wingertge))
 * 0.1.8
