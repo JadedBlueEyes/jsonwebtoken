@@ -1,88 +1,110 @@
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
+use std::convert::{TryFrom, TryInto};
 
-use base64::{decode_config, URL_SAFE_NO_PAD};
+use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use regex::Regex;
 
 use reqwest::Response;
-use ring::signature::{RsaPublicKeyComponents, RSA_PKCS1_2048_8192_SHA256};
-use serde::{
-    de::DeserializeOwned,
-    {Deserialize, Serialize},
-};
-use serde_json::Value;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::error::*;
-use crate::jwt::*;
 
-type HeaderBody = String;
-pub type Signature = String;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct JwtKey {
-    #[serde(default)] // https://github.com/jfbilodeau/jwks-client/issues/1
-    pub e: String,
-    pub kty: String,
-    pub alg: Option<String>,
-    #[serde(default)] // https://github.com/jfbilodeau/jwks-client/issues/1
-    pub n: String,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct JWK {
+    pub alg: jsonwebtoken::Algorithm,
     pub kid: String,
+    pub kty: String,
+    pub e: Option<String>,
+    pub n: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct JwtKey {
+    pub alg: jsonwebtoken::Algorithm,
+    pub kid: String,
+    pub kind: JwtKeyKind,
+}
+#[derive(Debug, Clone)]
+pub enum JwtKeyKind {
+    RSA(DecodingKey<'static>),
+    UnsupportedKty(String),
 }
 
 impl JwtKey {
-    pub fn new(kid: &str, n: &str, e: &str) -> JwtKey {
+    pub fn new(kid: &str, alg: Algorithm, key: DecodingKey<'static>) -> JwtKey {
         JwtKey {
-            e: e.to_owned(),
-            kty: "JTW".to_string(),
-            alg: Some("RS256".to_string()),
-            n: n.to_owned(),
+            alg,
             kid: kid.to_owned(),
+            kind: JwtKeyKind::RSA(key),
+        }
+    }
+
+    pub fn new_rsa256(kid: &str, n: &str, e: &str) -> JwtKey {
+        JwtKey {
+            alg: Algorithm::RS256,
+            kid: kid.to_owned(),
+            kind: JwtKeyKind::RSA(DecodingKey::from_rsa_components(n, e).into_static()),
+        }
+    }
+    pub fn new_rsa512(kid: &str, n: &str, e: &str) -> JwtKey {
+        JwtKey {
+            alg: Algorithm::RS512,
+            kid: kid.to_owned(),
+            kind: JwtKeyKind::RSA(DecodingKey::from_rsa_components(n, e).into_static()),
+        }
+    }
+
+    pub fn decoding_key(&self) -> Result<&DecodingKey, Error> {
+        match &self.kind {
+            JwtKeyKind::RSA(key) => Ok(key),
+            JwtKeyKind::UnsupportedKty(kty) => Err(err("Unsupported key type", ErrorKind::UnsupportedKeyType(kty.to_owned()))),
         }
     }
 }
 
-impl Clone for JwtKey {
-    fn clone(&self) -> Self {
-        JwtKey {
-            e: self.e.clone(),
-            kty: self.kty.clone(),
-            alg: self.alg.clone(),
-            n: self.n.clone(),
-            kid: self.kid.clone(),
-        }
+impl TryFrom<JWK> for JwtKey {
+    type Error = Error;
+
+    fn try_from(JWK { kid, alg, kty, n, e }: JWK) -> Result<Self, Error> {
+        let kind = match (kty.as_ref(), n, e) {
+            ("RSA", Some(n), Some(e)) => JwtKeyKind::RSA(DecodingKey::from_rsa_components(&n, &e).into_static()),
+            ("RSA", _, _) => return Err(err("RSA key misses parameters", ErrorKind::Key)),
+            (_, _, _) => JwtKeyKind::UnsupportedKty(kty),
+        };
+        Ok(JwtKey { kid, alg, kind })
     }
 }
 
 #[derive(Clone)]
 pub struct KeyStore {
-    pub(crate) key_url: String,
+    pub(crate) key_url: Option<String>,
     pub(crate) keys: Vec<JwtKey>,
 }
 
 pub static KEY_CACHE: ::cached::once_cell::sync::Lazy<
-    ::cached::async_mutex::Mutex<crate::cache::ExpiringCache<String, Vec<JwtKey>>>,
+    ::cached::async_mutex::Mutex<crate::cache::ExpiringCache<String, Vec<JWK>>>,
 > = ::cached::once_cell::sync::Lazy::new(|| {
     ::cached::async_mutex::Mutex::new(crate::cache::ExpiringCache::with_lifespan(Duration::from_secs(600)))
 });
-
-impl Default for KeyStore {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 #[allow(dead_code)]
 impl KeyStore {
     pub fn new() -> KeyStore {
         KeyStore {
-            key_url: "".to_owned(),
-            keys: vec![],
+            key_url: None,
+            keys: Vec::new(),
         }
     }
 
     pub async fn new_from(jkws_url: String) -> Result<KeyStore, Error> {
-        let mut key_store = KeyStore::new();
+        let mut key_store = KeyStore {
+            key_url: Some(jkws_url),
+            keys: Vec::new(),
+        };
 
-        key_store.key_url = jkws_url;
+        // key_store.key_url = jkws_url;
 
         key_store.reload_keys().await?;
 
@@ -93,11 +115,11 @@ impl KeyStore {
         self.keys.clear();
     }
 
-    pub fn key_url(&self) -> &str {
-        &self.key_url
+    pub fn key_url(&self) -> Option<&String> {
+        self.key_url.as_ref()
     }
 
-    async fn get_keys(url: &str) -> Result<Vec<JwtKey>, Error> {
+    async fn get_keys(url: &str) -> Result<Vec<JWK>, Error> {
         let key = (*url).to_string();
         {
             let mut cache = KEY_CACHE.lock().await;
@@ -106,9 +128,9 @@ impl KeyStore {
             }
         }
 
-        #[derive(Deserialize)]
+        #[derive(Clone, Deserialize)]
         pub struct JwtKeys {
-            pub keys: Vec<JwtKey>,
+            pub keys: Vec<JWK>,
         }
 
         let mut response = reqwest::get(url).await.map_err(|_| err_con("Could not download JWKS"))?;
@@ -129,8 +151,18 @@ impl KeyStore {
     }
 
     pub async fn reload_keys(&mut self) -> Result<(), Error> {
+        if self.key_url.is_none() {
+            return Err(Error {
+                msg: "No remote store specified to fetch from in key_url",
+                kind: ErrorKind::NoRemoteStore
+            });
+        }
 
-        self.keys = KeyStore::get_keys(&self.key_url).await?;
+        let keys = KeyStore::get_keys(self.key_url.as_ref().unwrap()).await?;
+
+        for jwk in keys {
+            self.add_key(&jwk.try_into()?);
+        }
 
         Ok(())
     }
@@ -168,58 +200,6 @@ impl KeyStore {
         self.keys.push(key.clone());
     }
 
-    fn decode_segments(&self, token: &str) -> Result<(Header, Payload, Signature, HeaderBody), Error> {
-        let raw_segments: Vec<&str> = token.split('.').collect();
-        if raw_segments.len() != 3 {
-            return Err(err_inv("JWT does not have 3 segments"));
-        }
-
-        let header_segment = raw_segments[0];
-        let payload_segment = raw_segments[1];
-        let signature_segment = raw_segments[2].to_string();
-
-        let header = Header::new(decode_segment::<Value>(header_segment).map_err(|_| err_hea("Failed to decode header"))?);
-        let payload = Payload::new(decode_segment::<Value>(payload_segment).map_err(|_| err_pay("Failed to decode payload"))?);
-
-        let body = format!("{}.{}", header_segment, payload_segment);
-
-        Ok((header, payload, signature_segment, body))
-    }
-
-    pub fn decode(&self, token: &str) -> Result<Jwt, Error> {
-        let (header, payload, signature, _) = self.decode_segments(token)?;
-
-        Ok(Jwt::new(header, payload, signature))
-    }
-
-    pub fn verify_time(&self, token: &str, time: SystemTime) -> Result<Jwt, Error> {
-        let (header, payload, signature, body) = self.decode_segments(token)?;
-
-        if header.alg() != Some("RS256") {
-            return Err(err_inv("Unsupported algorithm"));
-        }
-
-        let kid = header.kid().ok_or_else(|| err_key("No key id"))?;
-
-        let key = self.key_by_id(kid).ok_or_else(|| err_key("JWT key does not exists"))?;
-
-        let e = decode_config(&key.e, URL_SAFE_NO_PAD).map_err(|_| err_cer("Failed to decode exponent"))?;
-        let n = decode_config(&key.n, URL_SAFE_NO_PAD).map_err(|_| err_cer("Failed to decode modulus"))?;
-
-        verify_signature(&e, &n, &body, &signature)?;
-
-        let jwt = Jwt::new(header, payload, signature);
-
-        if jwt.expired_time(time).unwrap_or(false) {
-            return Err(err_exp("Token expired"));
-        }
-        if jwt.early_time(time).unwrap_or(false) {
-            return Err(err_nbf("Too early to use token (nbf)"));
-        }
-
-        Ok(jwt)
-    }
-
     /// Verify a JWT token.
     /// If the token is valid, it is returned.
     ///
@@ -229,27 +209,20 @@ impl KeyStore {
     /// * Signature matches public key
     /// * It is not expired
     /// * The `nbf` is not set to before now
-    pub fn verify(&self, token: &str) -> Result<Jwt, Error> {
-        self.verify_time(token, SystemTime::now())
+    pub fn verify<T: DeserializeOwned>(&self, token: &str, validation: &Validation) -> Result<TokenData<T>, Error> {
+        let header = jsonwebtoken::decode_header(token).map_err(err_jwt)?;
+
+        let kid = header.kid.ok_or_else(|| err_key("No key id"))?;
+
+        let key = self.key_by_id(&kid).ok_or_else(|| err_key("JWT key does not exists"))?;
+
+        if key.alg != header.alg {
+            return Err(err("Token and its key have non-matching algorithms", ErrorKind::AlgorithmMismatch));
+        }
+
+        let data = jsonwebtoken::decode(token, key.decoding_key()?, &validation).map_err(err_jwt)?;
+
+        Ok(data)
     }
 
-}
-
-fn verify_signature(e: &[u8], n: &[u8], message: &str, signature: &str) -> Result<(), Error> {
-    let pkc = RsaPublicKeyComponents { e, n };
-
-    let message_bytes = &message.as_bytes().to_vec();
-    let signature_bytes = decode_config(&signature, URL_SAFE_NO_PAD).map_err(|_| err_sig("Could not base64 decode signature"))?;
-
-    let result = pkc.verify(&RSA_PKCS1_2048_8192_SHA256, &message_bytes, &signature_bytes);
-
-    result.map_err(|_| err_cer("Signature does not match certificate"))
-}
-
-fn decode_segment<T: DeserializeOwned>(segment: &str) -> Result<T, Error> {
-    let raw = decode_config(segment, base64::URL_SAFE_NO_PAD).map_err(|_| err_inv("Failed to decode segment"))?;
-    let slice = String::from_utf8_lossy(&raw);
-    let decoded: T = serde_json::from_str(&slice).map_err(|_| err_inv("Failed to decode segment"))?;
-
-    Ok(decoded)
 }
