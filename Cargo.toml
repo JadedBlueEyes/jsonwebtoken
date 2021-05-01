@@ -25,5 +25,5 @@ joels-caches = {git = "https://github.com/joelellis/joels-caches.git"}
 cached = "0.18"
 
 [dev-dependencies]
-tokio = {version = "0.2", features = ["macros"]}
-tokio-test = "0.2"
+tokio = {version = "1", features = ["macros", "rt-multi-thread"]}
+tokio-test = "0.4"
