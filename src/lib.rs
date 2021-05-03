@@ -9,20 +9,20 @@ pub use keyset::{JwtKey, KeyStore};
 /// JWKS client library [![Build Status](https://travis-ci.com/jfbilodeau/jwks-client.svg?branch=master)](https://travis-ci.com/jfbilodeau/jwks-client) [![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 /// ===
 /// JWKS-Client is a library written in Rust to decode and validate JWT tokens using a JSON Web Key Store.
-/// 
+///
 /// I created this library specifically to decode GCP/Firebase JWT but should be useable with little to no modification. Contact me to propose support for different JWKS key store.
-/// 
+///
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     use jsonwebtoken as jwt;
     use serde::{Deserialize, Serialize};
 
     use crate::keyset::{JwtKey, KeyStore};
 
-    const PRIVATE_KEY: &[u8] = include_bytes!("../test/private.pem");
+    const PRIVATE_KEY: &str = include_str!("../test/private.pem");
 
     fn valid_token() -> String {
         let mut claims: serde_json::Map<String, serde_json::Value> = serde_json::from_str(TEST_CLAIMS).unwrap();
@@ -43,10 +43,17 @@ mod tests {
         encode_token(claims)
     }
     fn encode_token(claims: serde_json::Map<String, serde_json::Value>) -> String {
-        let key = jwt::EncodingKey::from_rsa_pem(PRIVATE_KEY).unwrap();
+        let key = jwt::EncodingKey::from_rsa(rsa::RSAPrivateKey::from_pkcs8(&pem_to_der(PRIVATE_KEY)).unwrap()).unwrap();
         let mut header = jwt::Header::new(jwt::Algorithm::RS256);
         header.kid = Some("1".to_owned());
         jwt::encode(&header, &claims, &key).unwrap()
+    }
+    fn pem_to_der(pem: &str) -> Vec<u8> {
+        base64::decode(pem.split('\n').filter(|line| !line.starts_with('-')).fold(String::new(), |mut data, line| {
+            data.push_str(&line);
+            data
+        }))
+        .unwrap()
     }
 
     pub const TEST_CLAIMS: &str = r#"
@@ -127,7 +134,7 @@ mod tests {
 
         assert_eq!(0usize, key_set.keys_len());
 
-        key_set.add_key(&key);
+        key_set.add_key(&key.unwrap());
 
         assert_eq!(1usize, key_set.keys_len());
 
@@ -144,7 +151,7 @@ mod tests {
 
         assert_eq!(0usize, key_set.keys_len());
 
-        key_set.add_key(&key);
+        key_set.add_key(&key.unwrap());
 
         assert_eq!(1usize, key_set.keys_len());
 
@@ -163,7 +170,7 @@ mod tests {
 
         let mut key_set = KeyStore::new();
 
-        key_set.add_key(&key);
+        key_set.add_key(&key.unwrap());
 
         let validation = jwt::Validation {
             validate_nbf: true,
@@ -195,12 +202,13 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "InvalidLength")]
     fn test_verify_invalid_certificate() {
         let key = JwtKey::new_rsa256("1", N_INVALID, E);
 
         let mut key_set = KeyStore::new();
 
-        key_set.add_key(&key);
+        key_set.add_key(&key.unwrap());
 
         let validation = jwt::Validation {
             validate_nbf: true,
@@ -212,18 +220,17 @@ mod tests {
             iss: Some("https://chronogears.com/test".to_owned()),
         };
 
-        let result: Result<jsonwebtoken::TokenData<()>, _> = key_set.verify(&valid_token(), &validation);
-
-        assert!(result.is_err());
+        let _result: jsonwebtoken::TokenData<()> = key_set.verify(&valid_token(), &validation).unwrap();
     }
 
     #[test]
+    #[should_panic(expected = "InvalidLength")]
     fn test_verify_invalid_signature() {
         let key = JwtKey::new_rsa256("1", N, E);
 
         let mut key_set = KeyStore::new();
 
-        key_set.add_key(&key);
+        key_set.add_key(&key.unwrap());
 
         let validation = jwt::Validation {
             validate_nbf: true,
@@ -235,9 +242,7 @@ mod tests {
             iss: Some("https://chronogears.com/test".to_owned()),
         };
 
-        let result: Result<jsonwebtoken::TokenData<()>, _> = key_set.verify(TOKEN_INV_CERT, &validation);
-
-        assert!(result.is_err());
+        let _result: jsonwebtoken::TokenData<()> = key_set.verify(TOKEN_INV_CERT, &validation).unwrap();
     }
 
     // TODO: Key expiry (currently assumes that key stores are short-lived)

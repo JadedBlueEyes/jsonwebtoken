@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
 use std::convert::{TryFrom, TryInto};
+use std::time::Duration;
 
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use regex::Regex;
@@ -9,7 +8,6 @@ use reqwest::Response;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::error::*;
-
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JWK {
@@ -28,12 +26,12 @@ pub struct JwtKey {
 }
 #[derive(Debug, Clone)]
 pub enum JwtKeyKind {
-    RSA(DecodingKey<'static>),
+    RSA(DecodingKey),
     UnsupportedKty(String),
 }
 
 impl JwtKey {
-    pub fn new(kid: &str, alg: Algorithm, key: DecodingKey<'static>) -> JwtKey {
+    pub fn new(kid: &str, alg: Algorithm, key: DecodingKey) -> JwtKey {
         JwtKey {
             alg,
             kid: kid.to_owned(),
@@ -41,19 +39,19 @@ impl JwtKey {
         }
     }
 
-    pub fn new_rsa256(kid: &str, n: &str, e: &str) -> JwtKey {
-        JwtKey {
+    pub fn new_rsa256(kid: &str, n: &str, e: &str) -> Result<JwtKey, jsonwebtoken::errors::Error> {
+        Ok(JwtKey {
             alg: Algorithm::RS256,
             kid: kid.to_owned(),
-            kind: JwtKeyKind::RSA(DecodingKey::from_rsa_components(n, e).into_static()),
-        }
+            kind: JwtKeyKind::RSA(DecodingKey::from_rsa_components(n, e)?),
+        })
     }
-    pub fn new_rsa512(kid: &str, n: &str, e: &str) -> JwtKey {
-        JwtKey {
+    pub fn new_rsa512(kid: &str, n: &str, e: &str) -> Result<JwtKey, jsonwebtoken::errors::Error> {
+        Ok(JwtKey {
             alg: Algorithm::RS512,
             kid: kid.to_owned(),
-            kind: JwtKeyKind::RSA(DecodingKey::from_rsa_components(n, e).into_static()),
-        }
+            kind: JwtKeyKind::RSA(DecodingKey::from_rsa_components(n, e)?),
+        })
     }
 
     pub fn decoding_key(&self) -> Result<&DecodingKey, Error> {
@@ -69,11 +67,14 @@ impl TryFrom<JWK> for JwtKey {
 
     fn try_from(JWK { kid, alg, kty, n, e }: JWK) -> Result<Self, Error> {
         let kind = match (kty.as_ref(), n, e) {
-            ("RSA", Some(n), Some(e)) => JwtKeyKind::RSA(DecodingKey::from_rsa_components(&n, &e).into_static()),
+            ("RSA", Some(n), Some(e)) => JwtKeyKind::RSA(DecodingKey::from_rsa_components(&n, &e).map_err(|x| Error {
+                msg: "Failed to construct RSA public key",
+                kind: ErrorKind::JwtDecodeError(Box::new(x.into_kind())),
+            })?),
             ("RSA", _, _) => return Err(err("RSA key misses parameters", ErrorKind::Key)),
             (_, _, _) => JwtKeyKind::UnsupportedKty(kty),
         };
-        Ok(JwtKey { kid, alg, kind })
+        Ok(JwtKey { alg, kid, kind })
     }
 }
 
@@ -83,26 +84,17 @@ pub struct KeyStore {
     pub(crate) keys: Vec<JwtKey>,
 }
 
-pub static KEY_CACHE: ::cached::once_cell::sync::Lazy<
-    ::cached::async_mutex::Mutex<crate::cache::ExpiringCache<String, Vec<JWK>>>,
-> = ::cached::once_cell::sync::Lazy::new(|| {
-    ::cached::async_mutex::Mutex::new(crate::cache::ExpiringCache::with_lifespan(Duration::from_secs(600)))
-});
+pub static KEY_CACHE: ::cached::once_cell::sync::Lazy<::cached::async_mutex::Mutex<crate::cache::ExpiringCache<String, Vec<JWK>>>> =
+    ::cached::once_cell::sync::Lazy::new(|| ::cached::async_mutex::Mutex::new(crate::cache::ExpiringCache::with_lifespan(Duration::from_secs(600))));
 
 #[allow(dead_code)]
 impl KeyStore {
     pub fn new() -> KeyStore {
-        KeyStore {
-            key_url: None,
-            keys: Vec::new(),
-        }
+        KeyStore { key_url: None, keys: Vec::new() }
     }
 
     pub async fn new_from(jkws_url: String) -> Result<KeyStore, Error> {
-        let mut key_store = KeyStore {
-            key_url: Some(jkws_url),
-            keys: Vec::new(),
-        };
+        let mut key_store = KeyStore { key_url: Some(jkws_url), keys: Vec::new() };
 
         // key_store.key_url = jkws_url;
 
@@ -154,7 +146,7 @@ impl KeyStore {
         if self.key_url.is_none() {
             return Err(Error {
                 msg: "No remote store specified to fetch from in key_url",
-                kind: ErrorKind::NoRemoteStore
+                kind: ErrorKind::NoRemoteStore,
             });
         }
 
@@ -224,5 +216,10 @@ impl KeyStore {
 
         Ok(data)
     }
+}
 
+impl Default for KeyStore {
+    fn default() -> Self {
+        Self::new()
+    }
 }

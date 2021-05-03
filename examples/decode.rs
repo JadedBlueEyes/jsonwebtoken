@@ -1,5 +1,5 @@
-use jwks_client::keyset::KeyStore;
 use jsonwebtoken::{TokenData, Validation};
+use jwks_client::keyset::KeyStore;
 use serde_json::Value;
 
 fn main() {

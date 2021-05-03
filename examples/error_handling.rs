@@ -1,6 +1,6 @@
-use jwks_client::error::{Error, ErrorKind};
-use jwks_client::keyset::KeyStore;
 use jsonwebtoken::Validation;
+
+use jwks_client::keyset::KeyStore;
 use serde_json::Value;
 
 #[rustfmt::skip]
