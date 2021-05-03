@@ -42,6 +42,8 @@ pub enum ErrorKind {
     InvalidEcdsaKey,
     /// When the secret given is not a valid RSA key
     InvalidRsaKey,
+    /// When the secret given is not a valid HMAC secret
+    InvalidHmacSecret,
     /// When the algorithm from string doesn't match the one passed to `from_str`
     InvalidAlgorithmName,
     /// When a key is provided with an invalid format
@@ -69,8 +71,8 @@ pub enum ErrorKind {
     Json(serde_json::Error),
     /// Some of the text was invalid UTF-8
     Utf8(::std::string::FromUtf8Error),
-    /// Something unspecified went wrong with crypto
-    Crypto(::ring::error::Unspecified),
+    // /// Something unspecified went wrong with crypto
+    // Crypto(::ring::error::Unspecified),
 }
 
 impl StdError for Error {
@@ -80,6 +82,7 @@ impl StdError for Error {
             ErrorKind::InvalidSignature => None,
             ErrorKind::InvalidEcdsaKey => None,
             ErrorKind::InvalidRsaKey => None,
+            ErrorKind::InvalidHmacSecret => None,
             ErrorKind::ExpiredSignature => None,
             ErrorKind::InvalidIssuer => None,
             ErrorKind::InvalidAudience => None,
@@ -91,7 +94,6 @@ impl StdError for Error {
             ErrorKind::Base64(ref err) => Some(err),
             ErrorKind::Json(ref err) => Some(err),
             ErrorKind::Utf8(ref err) => Some(err),
-            ErrorKind::Crypto(ref err) => Some(err),
         }
     }
 }
@@ -103,6 +105,7 @@ impl fmt::Display for Error {
             | ErrorKind::InvalidSignature
             | ErrorKind::InvalidEcdsaKey
             | ErrorKind::InvalidRsaKey
+            | ErrorKind::InvalidHmacSecret
             | ErrorKind::ExpiredSignature
             | ErrorKind::InvalidIssuer
             | ErrorKind::InvalidAudience
@@ -113,7 +116,6 @@ impl fmt::Display for Error {
             | ErrorKind::InvalidAlgorithmName => write!(f, "{:?}", self.0),
             ErrorKind::Json(ref err) => write!(f, "JSON error: {}", err),
             ErrorKind::Utf8(ref err) => write!(f, "UTF-8 error: {}", err),
-            ErrorKind::Crypto(ref err) => write!(f, "Crypto error: {}", err),
             ErrorKind::Base64(ref err) => write!(f, "Base64 error: {}", err),
         }
     }
@@ -134,18 +136,6 @@ impl From<serde_json::Error> for Error {
 impl From<::std::string::FromUtf8Error> for Error {
     fn from(err: ::std::string::FromUtf8Error) -> Error {
         new_error(ErrorKind::Utf8(err))
-    }
-}
-
-impl From<::ring::error::Unspecified> for Error {
-    fn from(err: ::ring::error::Unspecified) -> Error {
-        new_error(ErrorKind::Crypto(err))
-    }
-}
-
-impl From<::ring::error::KeyRejected> for Error {
-    fn from(_err: ::ring::error::KeyRejected) -> Error {
-        new_error(ErrorKind::InvalidEcdsaKey)
     }
 }
 

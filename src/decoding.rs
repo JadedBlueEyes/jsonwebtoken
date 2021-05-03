@@ -6,7 +6,7 @@ use crate::algorithms::AlgorithmFamily;
 use crate::crypto::verify;
 use crate::errors::{new_error, ErrorKind, Result};
 use crate::header::Header;
-use crate::pem::decoder::PemEncodedKey;
+// use crate::pem::decoder::PemEncodedKey;
 use crate::serialization::from_jwt_part_claims;
 use crate::validation::{validate, Validation};
 
@@ -31,103 +31,28 @@ macro_rules! expect_two {
     }};
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) enum DecodingKeyKind<'a> {
-    SecretOrDer(Cow<'a, [u8]>),
-    RsaModulusExponent { n: Cow<'a, str>, e: Cow<'a, str> },
-}
-
 /// All the different kind of keys we can use to decode a JWT
 /// This key can be re-used so make sure you only initialize it once if you can for better performance
 #[derive(Debug, Clone, PartialEq)]
-pub struct DecodingKey<'a> {
-    pub(crate) family: AlgorithmFamily,
-    pub(crate) kind: DecodingKeyKind<'a>,
+pub enum DecodingKey {
+    Hmac(Vec<u8>),
+    Rsa(rsa::RSAPublicKey),
+    // EcPkcs8(Vec<u8>),
 }
 
-impl<'a> DecodingKey<'a> {
+impl DecodingKey {
     /// If you're using HMAC, use this.
-    pub fn from_secret(secret: &'a [u8]) -> Self {
-        DecodingKey {
-            family: AlgorithmFamily::Hmac,
-            kind: DecodingKeyKind::SecretOrDer(Cow::Borrowed(secret)),
-        }
+    pub fn from_hmac_secret(secret: &[u8]) -> Self {
+        DecodingKey::Hmac(secret.to_vec())
     }
 
     /// If you're using HMAC with a base64 encoded, use this.
-    pub fn from_base64_secret(secret: &str) -> Result<Self> {
-        let out = base64::decode(&secret)?;
-        Ok(DecodingKey {
-            family: AlgorithmFamily::Hmac,
-            kind: DecodingKeyKind::SecretOrDer(Cow::Owned(out)),
-        })
+    pub fn from_base64_hmac_secret(secret: &str) -> Result<Self> {
+        Ok(DecodingKey::Hmac(base64::decode(&secret)?))
     }
 
-    /// If you are loading a public RSA key in a PEM format, use this.
-    pub fn from_rsa_pem(key: &'a [u8]) -> Result<Self> {
-        let pem_key = PemEncodedKey::new(key)?;
-        let content = pem_key.as_rsa_key()?;
-        Ok(DecodingKey {
-            family: AlgorithmFamily::Rsa,
-            kind: DecodingKeyKind::SecretOrDer(Cow::Owned(content.to_vec())),
-        })
-    }
-
-    /// If you have (n, e) RSA public key components, use this.
-    pub fn from_rsa_components(modulus: &'a str, exponent: &'a str) -> Self {
-        DecodingKey {
-            family: AlgorithmFamily::Rsa,
-            kind: DecodingKeyKind::RsaModulusExponent {
-                n: Cow::Borrowed(modulus),
-                e: Cow::Borrowed(exponent),
-            },
-        }
-    }
-
-    /// If you have a ECDSA public key in PEM format, use this.
-    pub fn from_ec_pem(key: &'a [u8]) -> Result<Self> {
-        let pem_key = PemEncodedKey::new(key)?;
-        let content = pem_key.as_ec_public_key()?;
-        Ok(DecodingKey {
-            family: AlgorithmFamily::Ec,
-            kind: DecodingKeyKind::SecretOrDer(Cow::Owned(content.to_vec())),
-        })
-    }
-
-    /// If you know what you're doing and have a RSA DER encoded public key, use this.
-    pub fn from_rsa_der(der: &'a [u8]) -> Self {
-        DecodingKey {
-            family: AlgorithmFamily::Rsa,
-            kind: DecodingKeyKind::SecretOrDer(Cow::Borrowed(der)),
-        }
-    }
-
-    /// If you know what you're doing and have a RSA EC encoded public key, use this.
-    pub fn from_ec_der(der: &'a [u8]) -> Self {
-        DecodingKey {
-            family: AlgorithmFamily::Ec,
-            kind: DecodingKeyKind::SecretOrDer(Cow::Borrowed(der)),
-        }
-    }
-
-    /// Convert self to `DecodingKey<'static>`.
-    pub fn into_static(self) -> DecodingKey<'static> {
-        use DecodingKeyKind::*;
-        let DecodingKey { family, kind } = self;
-        let static_kind = match kind {
-            SecretOrDer(key) => SecretOrDer(Cow::Owned(key.into_owned())),
-            RsaModulusExponent { n, e } => {
-                RsaModulusExponent { n: Cow::Owned(n.into_owned()), e: Cow::Owned(e.into_owned()) }
-            }
-        };
-        DecodingKey { family, kind: static_kind }
-    }
-
-    pub(crate) fn as_bytes(&self) -> &[u8] {
-        match &self.kind {
-            DecodingKeyKind::SecretOrDer(b) => &b,
-            DecodingKeyKind::RsaModulusExponent { .. } => unreachable!(),
-        }
+    pub fn from_rsa(key: rsa::RSAPublicKey) -> Result<Self> {
+        Ok(DecodingKey::Rsa(key))
     }
 }
 
@@ -147,24 +72,18 @@ impl<'a> DecodingKey<'a> {
 ///
 /// let token = "a.jwt.token".to_string();
 /// // Claims is a struct that implements Deserialize
-/// let token_message = decode::<Claims>(&token, &DecodingKey::from_secret("secret".as_ref()), &Validation::new(Algorithm::HS256));
+/// let token_message = decode::<Claims>(&token, &DecodingKey::from_hmac_secret("secret".as_ref()), &Validation::new(Algorithm::HS256));
 /// ```
 pub fn decode<T: DeserializeOwned>(
     token: &str,
     key: &DecodingKey,
     validation: &Validation,
 ) -> Result<TokenData<T>> {
-    for alg in &validation.algorithms {
-        if key.family != alg.family() {
-            return Err(new_error(ErrorKind::InvalidAlgorithm));
-        }
-    }
-
     let (signature, message) = expect_two!(token.rsplitn(2, '.'));
     let (claims, header) = expect_two!(message.rsplitn(2, '.'));
     let header = Header::from_encoded(header)?;
 
-    if !validation.algorithms.contains(&header.alg) {
+    if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&header.alg) {
         return Err(new_error(ErrorKind::InvalidAlgorithm));
     }
 
@@ -234,7 +153,7 @@ pub fn dangerous_insecure_decode_with_validation<T: DeserializeOwned>(
     let (claims, header) = expect_two!(message.rsplitn(2, '.'));
     let header = Header::from_encoded(header)?;
 
-    if !validation.algorithms.contains(&header.alg) {
+    if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&header.alg) {
         return Err(new_error(ErrorKind::InvalidAlgorithm));
     }
 

@@ -18,9 +18,9 @@ fn round_trip_sign_verification_pk8() {
     let pubkey = include_bytes!("public_ecdsa_key.pk8");
 
     let encrypted =
-        sign("hello world", &EncodingKey::from_ec_der(privkey), Algorithm::ES256).unwrap();
+        sign("hello world", &EncodingKey::from_pkcs8_ec(privkey), Algorithm::ES256).unwrap();
     let is_valid =
-        verify(&encrypted, "hello world", &DecodingKey::from_ec_der(pubkey), Algorithm::ES256)
+        verify(&encrypted, "hello world", &DecodingKey::from_pkcs8_ec(pubkey), Algorithm::ES256)
             .unwrap();
     assert!(is_valid);
 }
@@ -30,12 +30,12 @@ fn round_trip_sign_verification_pem() {
     let privkey_pem = include_bytes!("private_ecdsa_key.pem");
     let pubkey_pem = include_bytes!("public_ecdsa_key.pem");
     let encrypted =
-        sign("hello world", &EncodingKey::from_ec_pem(privkey_pem).unwrap(), Algorithm::ES256)
+        sign("hello world", &EncodingKey::from_pkcs8_ec_pem(privkey_pem).unwrap(), Algorithm::ES256)
             .unwrap();
     let is_valid = verify(
         &encrypted,
         "hello world",
-        &DecodingKey::from_ec_pem(pubkey_pem).unwrap(),
+        &DecodingKey::from_pkcs8_ec_pem(pubkey_pem).unwrap(),
         Algorithm::ES256,
     )
     .unwrap();
@@ -54,12 +54,12 @@ fn round_trip_claim() {
     let token = encode(
         &Header::new(Algorithm::ES256),
         &my_claims,
-        &EncodingKey::from_ec_pem(privkey_pem).unwrap(),
+        &EncodingKey::from_pkcs8_ec_pem(privkey_pem).unwrap(),
     )
     .unwrap();
     let token_data = decode::<Claims>(
         &token,
-        &DecodingKey::from_ec_pem(pubkey_pem).unwrap(),
+        &DecodingKey::from_pkcs8_ec_pem(pubkey_pem).unwrap(),
         &Validation::new(Algorithm::ES256),
     )
     .unwrap();
@@ -80,12 +80,12 @@ fn roundtrip_with_jwtio_example() {
     let token = encode(
         &Header::new(Algorithm::ES384),
         &my_claims,
-        &EncodingKey::from_ec_pem(privkey_pem).unwrap(),
+        &EncodingKey::from_pkcs8_ec_pem(privkey_pem).unwrap(),
     )
     .unwrap();
     let token_data = decode::<Claims>(
         &token,
-        &DecodingKey::from_ec_pem(pubkey_pem).unwrap(),
+        &DecodingKey::from_pkcs8_ec_pem(pubkey_pem).unwrap(),
         &Validation::new(Algorithm::ES384),
     )
     .unwrap();

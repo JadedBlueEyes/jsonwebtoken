@@ -1,20 +1,69 @@
-use ring::constant_time::verify_slices_are_equal;
-use ring::{hmac, signature};
+use hmac::{Hmac, Mac, NewMac};
 
 use crate::algorithms::Algorithm;
-use crate::decoding::{DecodingKey, DecodingKeyKind};
+use crate::decoding::DecodingKey;
 use crate::encoding::EncodingKey;
-use crate::errors::Result;
+use crate::errors::{new_error, ErrorKind, Result};
 use crate::serialization::{b64_decode, b64_encode};
+use ::rsa::{hash::Hash, padding::PaddingScheme};
 
-pub(crate) mod ecdsa;
+use sha2::{Sha256, Sha384, Sha512};
+// pub(crate) mod ecdsa;
 pub(crate) mod rsa;
 
+type HmacSha256 = Hmac<Sha256>;
+type HmacSha384 = Hmac<Sha384>;
+type HmacSha512 = Hmac<Sha512>;
 /// The actual HS signing + encoding
 /// Could be in its own file to match RSA/EC but it's 2 lines...
-pub(crate) fn sign_hmac(alg: hmac::Algorithm, key: &[u8], message: &str) -> Result<String> {
-    let digest = hmac::sign(&hmac::Key::new(alg, key), message.as_bytes());
-    Ok(b64_encode(digest.as_ref()))
+pub(crate) fn sign_hmac(alg: Algorithm, key: &[u8], message: &str) -> Result<String> {
+    // println!("alg: {:?}\nkey: {:?}\nmessage: {:?}");
+
+    // let digest = hmac::sign(&hmac::Key::new(alg, key), message.as_bytes());
+    let digest = match alg {
+        Algorithm::HS256 => {
+            let mut mac = HmacSha256::new_from_slice(key).unwrap();
+            mac.update(message.as_bytes());
+            b64_encode(mac.finalize().into_bytes().as_slice())
+        }
+        Algorithm::HS384 => {
+            let mut mac = HmacSha384::new_from_slice(key).unwrap();
+            mac.update(message.as_bytes());
+            b64_encode(mac.finalize().into_bytes().as_slice())
+        }
+        Algorithm::HS512 => {
+            let mut mac = HmacSha512::new_from_slice(key).unwrap();
+            mac.update(message.as_bytes());
+            b64_encode(mac.finalize().into_bytes().as_slice())
+        }
+        _ => unreachable!(),
+    };
+    Ok(digest)
+}
+
+/// Validates that the key can be used with the given algorithm
+pub fn validate_matching_key(key: &EncodingKey, algorithm: Algorithm) -> Result<()> {
+    match key {
+        EncodingKey::Hmac(_) => match algorithm {
+            Algorithm::HS256 => Ok(()),
+            Algorithm::HS384 => Ok(()),
+            Algorithm::HS512 => Ok(()),
+            _ => Err(ErrorKind::InvalidAlgorithm.into()),
+        },
+        EncodingKey::Rsa(_) => match algorithm {
+                Algorithm::RS256
+                // | Algorithm::PS256
+                // | Algorithm::PS384
+                // | Algorithm::PS512
+                | Algorithm::RS384
+                | Algorithm::RS512 => Ok(()),
+                _ => Err(ErrorKind::InvalidAlgorithm.into())
+            }, // EncodingKey::EcPkcs8(_)
+               //     => match algorithm {
+               //         Algorithm::ES256 | Algorithm::ES384 => Ok(()),
+               //         _ => Err(ErrorKind::InvalidAlgorithm.into())
+               //     }
+    }
 }
 
 /// Take the payload of a JWT, sign it using the algorithm given and return
@@ -22,36 +71,35 @@ pub(crate) fn sign_hmac(alg: hmac::Algorithm, key: &[u8], message: &str) -> Resu
 ///
 /// If you just want to encode a JWT, use `encode` instead.
 pub fn sign(message: &str, key: &EncodingKey, algorithm: Algorithm) -> Result<String> {
-    match algorithm {
-        Algorithm::HS256 => sign_hmac(hmac::HMAC_SHA256, key.inner(), message),
-        Algorithm::HS384 => sign_hmac(hmac::HMAC_SHA384, key.inner(), message),
-        Algorithm::HS512 => sign_hmac(hmac::HMAC_SHA512, key.inner(), message),
-
-        Algorithm::ES256 | Algorithm::ES384 => {
-            ecdsa::sign(ecdsa::alg_to_ec_signing(algorithm), key.inner(), message)
-        }
-
-        Algorithm::RS256
-        | Algorithm::RS384
-        | Algorithm::RS512
-        | Algorithm::PS256
-        | Algorithm::PS384
-        | Algorithm::PS512 => rsa::sign(rsa::alg_to_rsa_signing(algorithm), key.inner(), message),
+    match key {
+        EncodingKey::Hmac(s) => match algorithm {
+            Algorithm::HS256 => sign_hmac(Algorithm::HS256, s, message),
+            Algorithm::HS384 => sign_hmac(Algorithm::HS384, s, message),
+            Algorithm::HS512 => sign_hmac(Algorithm::HS512, s, message),
+            _ => Err(ErrorKind::InvalidAlgorithm.into()),
+        },
+        EncodingKey::Rsa(k) => match algorithm {
+            Algorithm::RS256 => {
+                rsa::sign(PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_256) }, k, message)
+            }
+            Algorithm::RS384 => {
+                rsa::sign(PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_384) }, k, message)
+            }
+            Algorithm::RS512 => {
+                rsa::sign(PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_512) }, k, message)
+            }
+            // Algorithm::PS256 => rsa::sign(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha256::default()) }, k, message),
+            // Algorithm::PS384 => rsa::sign(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha384::default()) }, k, message),
+            // Algorithm::PS512 => rsa::sign(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha512::default()) }, k, message),
+            _ => Err(ErrorKind::InvalidAlgorithm.into()),
+        }, // EncodingKey::EcPkcs8(k)
+           //     => match algorithm {
+           //         Algorithm::ES256 | Algorithm::ES384 => {
+           //             ecdsa::sign_pkcs8(ecdsa::alg_to_ec_signing(algorithm), k, message)
+           //         },
+           //         _ => Err(ErrorKind::InvalidAlgorithm.into())
+           //     }
     }
-}
-
-/// See Ring docs for more details
-fn verify_ring(
-    alg: &'static dyn signature::VerificationAlgorithm,
-    signature: &str,
-    message: &str,
-    key: &[u8],
-) -> Result<bool> {
-    let signature_bytes = b64_decode(signature)?;
-    let public_key = signature::UnparsedPublicKey::new(alg, key);
-    let res = public_key.verify(message.as_bytes(), &signature_bytes);
-
-    Ok(res.is_ok())
 }
 
 /// Compares the signature given with a re-computed signature for HMAC or using the public key
@@ -68,31 +116,54 @@ pub fn verify(
     key: &DecodingKey,
     algorithm: Algorithm,
 ) -> Result<bool> {
-    match algorithm {
-        Algorithm::HS256 | Algorithm::HS384 | Algorithm::HS512 => {
-            // we just re-sign the message with the key and compare if they are equal
-            let signed = sign(message, &EncodingKey::from_secret(key.as_bytes()), algorithm)?;
-            Ok(verify_slices_are_equal(signature.as_ref(), signed.as_ref()).is_ok())
-        }
-        Algorithm::ES256 | Algorithm::ES384 => verify_ring(
-            ecdsa::alg_to_ec_verification(algorithm),
-            signature,
-            message,
-            key.as_bytes(),
-        ),
-        Algorithm::RS256
-        | Algorithm::RS384
-        | Algorithm::RS512
-        | Algorithm::PS256
-        | Algorithm::PS384
-        | Algorithm::PS512 => {
-            let alg = rsa::alg_to_rsa_parameters(algorithm);
-            match &key.kind {
-                DecodingKeyKind::SecretOrDer(bytes) => verify_ring(alg, signature, message, bytes),
-                DecodingKeyKind::RsaModulusExponent { n, e } => {
-                    rsa::verify_from_components(alg, signature, message, (n, e))
-                }
+    match key {
+        DecodingKey::Hmac(s) => match algorithm {
+            Algorithm::HS256 => {
+                let mut mac = HmacSha256::new_from_slice(s).unwrap();
+                mac.update(message.as_bytes());
+                Ok(mac.finalize().into_bytes().as_slice()
+                    == b64_decode(signature)
+                        .map_err(|_e| new_error(ErrorKind::InvalidSignature))?)
             }
-        }
+            Algorithm::HS384 => {
+                let mut mac = HmacSha384::new_from_slice(s).unwrap();
+                mac.update(message.as_bytes());
+                Ok(mac.finalize().into_bytes().as_slice()
+                    == b64_decode(signature)
+                        .map_err(|_e| new_error(ErrorKind::InvalidSignature))?)
+            }
+            Algorithm::HS512 => {
+                let mut mac = HmacSha512::new_from_slice(s).unwrap();
+                mac.update(message.as_bytes());
+                Ok(mac.finalize().into_bytes().as_slice()
+                    == b64_decode(signature)
+                        .map_err(|_e| new_error(ErrorKind::InvalidSignature))?)
+            }
+            _ => Err(ErrorKind::InvalidAlgorithm.into()),
+        },
+        DecodingKey::Rsa(k) => match algorithm {
+            Algorithm::RS256 => rsa::verify(
+                PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_256) },
+                signature,
+                message,
+                k,
+            ),
+            Algorithm::RS384 => rsa::verify(
+                PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_384) },
+                signature,
+                message,
+                k,
+            ),
+            Algorithm::RS512 => rsa::verify(
+                PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_512) },
+                signature,
+                message,
+                k,
+            ),
+            // Algorithm::PS256 => rsa::verify(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha256::default()) }, signature, message, k),
+            // Algorithm::PS384 => rsa::verify(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha384::default()) }, signature, message, k),
+            // Algorithm::PS512 => rsa::verify(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha512::default()) }, signature, message, k),
+            _ => Err(ErrorKind::InvalidAlgorithm.into()),
+        },
     }
 }
