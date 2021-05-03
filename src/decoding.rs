@@ -1,8 +1,6 @@
-use std::borrow::Cow;
-
+use rsa::RSAPublicKey;
 use serde::de::DeserializeOwned;
 
-use crate::algorithms::AlgorithmFamily;
 use crate::crypto::verify;
 use crate::errors::{new_error, ErrorKind, Result};
 use crate::header::Header;
@@ -53,6 +51,16 @@ impl DecodingKey {
 
     pub fn from_rsa(key: rsa::RSAPublicKey) -> Result<Self> {
         Ok(DecodingKey::Rsa(key))
+    }
+
+    /// Convenience function for JWKS implementors
+    pub fn from_rsa_components(n: &str, e: &str) -> Result<Self> {
+        use crate::serialization::b64_decode;
+        let n = rsa::BigUint::from_bytes_be(&b64_decode(n)?);
+        let e = rsa::BigUint::from_bytes_be(&b64_decode(e)?);
+        Ok(DecodingKey::Rsa(
+            RSAPublicKey::new(n, e).map_err(|_| new_error(ErrorKind::InvalidKeyFormat))?,
+        ))
     }
 }
 

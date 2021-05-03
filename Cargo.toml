@@ -19,7 +19,7 @@ include = ["src/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
 [dependencies]
 serde_json = "1.0"
 serde = {version = "1.0", features = ["derive"] }
-# ring = { version = "0.16.5", features = ["std"] }
+
 base64 = "0.12"
 
 rand_core = { version = "0.6" }

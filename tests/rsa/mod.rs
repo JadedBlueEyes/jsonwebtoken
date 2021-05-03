@@ -109,6 +109,32 @@ fn round_trip_claim() {
     }
 }
 
+#[test]
+fn rsa_modulus_exponent() {
+    let privkey =
+        RSAPrivateKey::from_pkcs1(&pem_to_der(include_str!("private_rsa_key_pkcs1.pem"))).unwrap();
+    let my_claims = Claims {
+        sub: "b@b.com".to_string(),
+        company: "ACME".to_string(),
+        exp: Utc::now().timestamp() + 10000,
+    };
+    let n = "yRE6rHuNR0QbHO3H3Kt2pOKGVhQqGZXInOduQNxXzuKlvQTLUTv4l4sggh5_CYYi_cvI-SXVT9kPWSKXxJXBXd_4LkvcPuUakBoAkfh-eiFVMh2VrUyWyj3MFl0HTVF9KwRXLAcwkREiS3npThHRyIxuy0ZMeZfxVL5arMhw1SRELB8HoGfG_AtH89BIE9jDBHZ9dLelK9a184zAf8LwoPLxvJb3Il5nncqPcSfKDDodMFBIMc4lQzDKL5gvmiXLXB1AGLm8KBjfE8s3L5xqi-yUod-j8MtvIj812dkS4QMiRVN_by2h3ZY8LYVGrqZXZTcgn2ujn8uKjXLZVD5TdQ";
+    let e = "AQAB";
+
+    let encrypted = encode(
+        &Header::new(Algorithm::RS256),
+        &my_claims,
+        &EncodingKey::from_rsa(privkey).unwrap(),
+    )
+    .unwrap();
+    let res = decode::<Claims>(
+        &encrypted,
+        &DecodingKey::from_rsa_components(n, e).unwrap(),
+        &Validation::new(Algorithm::RS256),
+    );
+    assert!(res.is_ok());
+}
+
 // https://jwt.io/ is often used for examples so ensure their example works with jsonwebtoken
 #[test]
 fn roundtrip_with_jwtio_example_jey() {
