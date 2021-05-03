@@ -1,7 +1,7 @@
 //! Create and parses JWT (JSON Web Tokens)
 //!
 //! Documentation:  [stable](https://docs.rs/jsonwebtoken/)
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 mod algorithms;
 /// Lower level functions, if you want to do something other than JWTs
@@ -11,7 +11,6 @@ mod encoding;
 /// All the errors that can be encountered while encoding/decoding JWTs
 pub mod errors;
 mod header;
-mod pem;
 mod serialization;
 mod validation;
 

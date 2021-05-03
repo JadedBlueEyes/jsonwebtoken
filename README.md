@@ -1,12 +1,17 @@
 # jsonwebtoken
 
-[![Build Status](https://travis-ci.org/Keats/jsonwebtoken.svg)](https://travis-ci.org/Keats/jsonwebtoken)
+This is a fork of Keats' jsonwebtoken crate that uses RustCrypto crates (`rsa`, `sha2`, `hmac`) instead of Ring. This reduces the amount of work being done in the crate significantly and allows more flexibility in how the user loads RSA keys.
 
-[API documentation on docs.rs](https://docs.rs/jsonwebtoken/)
+Caveats:
+
+- No ECDSA: I didn't have time to reaserch and implement EC using RustCrypto crates and I removed it to completely remove the ring dependency.
+- No PSS: I haven't implemented PS256, PS384, PS512 as I don't feel confident I know enough to implement it properly.
+- HMAC signature verification doesn't use constant time comparison like Keats's original does.
 
 See [JSON Web Tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) for more information on what JSON Web Tokens are.
 
 ## Installation
+
 Add the following to Cargo.toml:
 
 ```toml
@@ -17,6 +22,7 @@ serde = {version = "1.0", features = ["derive"] }
 The minimum required Rust version is 1.40.
 
 ## Algorithms
+
 This library currently supports the following:
 
 - HS256
@@ -25,17 +31,21 @@ This library currently supports the following:
 - RS256
 - RS384
 - RS512
+
+### Removed
+
 - PS256
 - PS384
 - PS512
 - ES256
 - ES384
 
-
 ## How to use
+
 Complete examples are available in the examples directory: a basic one and one with a custom header.
 
 In terms of imports and structs:
+
 ```rust
 use serde::{Serialize, Deserialize};
 use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
@@ -50,7 +60,9 @@ struct Claims {
 ```
 
 ### Claims
+
 The claims fields which can be validated. (see [validation](#validation))
+
 ```rust
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
@@ -64,31 +76,35 @@ struct Claims {
 ```
 
 ### Header
+
 The default algorithm is HS256, which uses a shared secret.
 
 ```rust
-let token = encode(&Header::default(), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
+let token = encode(&Header::default(), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
 ```
 
 #### Custom headers & changing algorithm
+
 All the parameters from the RFC are supported but the default header only has `typ` and `alg` set.
 If you want to set the `kid` parameter or change the algorithm for example:
 
 ```rust
 let mut header = Header::new(Algorithm::HS512);
 header.kid = Some("blabla".to_owned());
-let token = encode(&header, &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
+let token = encode(&header, &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
 ```
+
 Look at `examples/custom_header.rs` for a full working example.
 
 ### Encoding
 
 ```rust
 // HS256
-let token = encode(&Header::default(), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
+let token = encode(&Header::default(), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
 // RSA
-let token = encode(&Header::new(Algorithm::RS256), &my_claims, &EncodingKey::from_rsa_pem(include_bytes!("privkey.pem"))?)?;
+let token = encode(&Header::new(Algorithm::RS256), &my_claims, &EncodingKey::from_rsa(RSAPrivateKey::new(&mut rng, bits).unwrap())?)?;
 ```
+
 Encoding a JWT takes 3 parameters:
 
 - a header: the `Header` struct
@@ -105,8 +121,9 @@ something similar and reuse it.
 
 ```rust
 // `token` is a struct with 2 fields: `header` and `claims` where `claims` is your own struct.
-let token = decode::<Claims>(&token, &DecodingKey::from_secret("secret".as_ref()), &Validation::default())?;
+let token = decode::<Claims>(&token, &DecodingKey::from_hmac_secret("secret".as_ref()), &Validation::default())?;
 ```
+
 `decode` can error for a variety of reasons:
 
 - the token or its signature is invalid
@@ -126,6 +143,7 @@ This does not perform any signature verification or validate the token claims.
 
 You can also decode a token using the public key components of a RSA key in base64 format.
 The main use-case is for JWK where your public key is in a JSON format like so:
+Look at the `rsa` crate's docs for instructions.
 
 ```json
 {
@@ -136,44 +154,10 @@ The main use-case is for JWK where your public key is in a JSON format like so:
 }
 ```
 
-```rust
-// `token` is a struct with 2 fields: `header` and `claims` where `claims` is your own struct.
-let token = decode::<Claims>(&token, &DecodingKey::from_rsa_components(jwk["n"], jwk["e"]), &Validation::new(Algorithm::RS256))?;
-```
-
 If your key is in PEM format, it is better performance wise to generate the `DecodingKey` once in a `lazy_static` or
 something similar and reuse it.
 
-### Convert SEC1 private key to PKCS8
-`jsonwebtoken` currently only supports PKCS8 format for private EC keys. If your key has `BEGIN EC PRIVATE KEY` at the top,
-this is a SEC1 type and can be converted to PKCS8 like so:
-
-```bash
-openssl pkcs8 -topk8 -nocrypt -in sec1.pem -out pkcs8.pem
-```
-
-
-## Validation
-This library validates automatically the `exp` claim and `nbf` is validated if present. You can also validate the `sub`, `iss` and `aud` but
-those require setting the expected value in the `Validation` struct.
-
-Since validating time fields is always a bit tricky due to clock skew,
-you can add some leeway to the `iat`, `exp` and `nbf` validation by setting the `leeway` field.
-
-Last but not least, you will need to set the algorithm(s) allowed for this token if you are not using `HS256`.
-
-```rust
-#[derive(Debug, Clone, PartialEq)]
-struct Validation {
-    pub leeway: u64,                    // Default: 0
-    pub validate_exp: bool,             // Default: true
-    pub validate_nbf: bool,             // Default: false
-    pub aud: Option<HashSet<String>>,   // Default: None
-    pub iss: Option<String>,            // Default: None
-    pub sub: Option<String>,            // Default: None
-    pub algorithms: Vec<Algorithm>,     // Default: vec![Algorithm::HS256]
-}
-```
+### Validation
 
 ```rust
 use jsonwebtoken::{Validation, Algorithm};

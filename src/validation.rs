@@ -62,16 +62,14 @@ pub struct Validation {
     /// If it contains a value, the validation will check that the `alg` of the header is contained
     /// in the ones provided and will error otherwise.
     ///
-    /// Defaults to `vec![Algorithm::HS256]`.
+    /// Defaults to empty.
     pub algorithms: Vec<Algorithm>,
 }
 
 impl Validation {
     /// Create a default validation setup allowing the given alg
     pub fn new(alg: Algorithm) -> Validation {
-        let mut validation = Validation::default();
-        validation.algorithms = vec![alg];
-        validation
+        Validation { algorithms: vec![alg], ..Default::default() }
     }
 
     /// `aud` is a collection of one or more acceptable audience members
@@ -92,7 +90,7 @@ impl Default for Validation {
             sub: None,
             aud: None,
 
-            algorithms: vec![Algorithm::HS256],
+            algorithms: Vec::new(),
         }
     }
 }

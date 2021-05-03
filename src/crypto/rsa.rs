@@ -1,66 +1,86 @@
-use ring::{rand, signature};
-use simple_asn1::BigUint;
-
-use crate::algorithms::Algorithm;
+// use ring::{rand, signature};
+use crate::errors;
 use crate::errors::{ErrorKind, Result};
 use crate::serialization::{b64_decode, b64_encode};
-
-/// Only used internally when validating RSA, to map from our enum to the Ring param structs.
-pub(crate) fn alg_to_rsa_parameters(alg: Algorithm) -> &'static signature::RsaParameters {
-    match alg {
-        Algorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
-        Algorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
-        Algorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
-        Algorithm::PS256 => &signature::RSA_PSS_2048_8192_SHA256,
-        Algorithm::PS384 => &signature::RSA_PSS_2048_8192_SHA384,
-        Algorithm::PS512 => &signature::RSA_PSS_2048_8192_SHA512,
-        _ => unreachable!("Tried to get RSA signature for a non-rsa algorithm"),
-    }
-}
-
-/// Only used internally when signing with RSA, to map from our enum to the Ring signing structs.
-pub(crate) fn alg_to_rsa_signing(alg: Algorithm) -> &'static dyn signature::RsaEncoding {
-    match alg {
-        Algorithm::RS256 => &signature::RSA_PKCS1_SHA256,
-        Algorithm::RS384 => &signature::RSA_PKCS1_SHA384,
-        Algorithm::RS512 => &signature::RSA_PKCS1_SHA512,
-        Algorithm::PS256 => &signature::RSA_PSS_SHA256,
-        Algorithm::PS384 => &signature::RSA_PSS_SHA384,
-        Algorithm::PS512 => &signature::RSA_PSS_SHA512,
-        _ => unreachable!("Tried to get RSA signature for a non-rsa algorithm"),
-    }
-}
+use ::rsa::{hash::Hash, padding::PaddingScheme};
+use rsa::{PublicKey, RSAPrivateKey, RSAPublicKey};
+use sha2::{Digest, Sha256, Sha384, Sha512};
 
 /// The actual RSA signing + encoding
-/// The key needs to be in PKCS8 format
+/// The key needs to be in binary DER-encoded ASN.1 format
 /// Taken from Ring doc https://briansmith.org/rustdoc/ring/signature/index.html
-pub(crate) fn sign(
-    alg: &'static dyn signature::RsaEncoding,
-    key: &[u8],
-    message: &str,
-) -> Result<String> {
-    let key_pair = signature::RsaKeyPair::from_der(key).map_err(|_| ErrorKind::InvalidRsaKey)?;
+pub(crate) fn sign(alg: PaddingScheme, key: &RSAPrivateKey, message: &str) -> Result<String> {
+    let digest: Vec<u8> = match alg {
+        // PaddingScheme::OAEP {digest, ..} => {
+        //     digest.update(message.as_bytes());
+        //     digest.finalize_reset()
+        // },
+        PaddingScheme::PKCS1v15Sign { hash } => match hash {
+            None => message.as_bytes().into(),
+            Some(Hash::SHA2_256) => {
+                let mut hasher = Sha256::new();
+                hasher.update(message.as_bytes());
+                let d = hasher.finalize();
+                d.iter().copied().collect()
+            }
+            Some(Hash::SHA2_384) => {
+                let mut hasher = Sha384::new();
+                hasher.update(message.as_bytes());
+                let d = hasher.finalize();
+                d.iter().copied().collect()
+            }
+            Some(Hash::SHA2_512) => {
+                let mut hasher = Sha512::new();
+                hasher.update(message.as_bytes());
+                let d = hasher.finalize();
+                d.iter().copied().collect()
+            }
+            _ => unimplemented!(),
+        },
+        _ => unimplemented!(),
+    };
 
-    let mut signature = vec![0; key_pair.public_modulus_len()];
-    let rng = rand::SystemRandom::new();
-    key_pair
-        .sign(alg, &rng, message.as_bytes(), &mut signature)
-        .map_err(|_| ErrorKind::InvalidRsaKey)?;
-
-    Ok(b64_encode(&signature))
+    Ok(b64_encode(&key.sign(alg, &digest).unwrap()))
 }
 
 /// Checks that a signature is valid based on the (n, e) RSA pubkey components
-pub(crate) fn verify_from_components(
-    alg: &'static signature::RsaParameters,
+pub(crate) fn verify(
+    alg: PaddingScheme,
     signature: &str,
     message: &str,
-    components: (&str, &str),
+    key: &RSAPublicKey,
 ) -> Result<bool> {
+    let digest: Vec<u8> = match alg {
+        // PaddingScheme::OAEP {digest, ..} => {
+        //     digest.update(message.as_bytes());
+        //     digest.finalize_reset()
+        // },
+        PaddingScheme::PKCS1v15Sign { hash } => match hash {
+            None => message.as_bytes().into(),
+            Some(Hash::SHA2_256) => {
+                let mut hasher = Sha256::new();
+                hasher.update(message.as_bytes());
+                let d = hasher.finalize();
+                d.iter().copied().collect()
+            }
+            Some(Hash::SHA2_384) => {
+                let mut hasher = Sha384::new();
+                hasher.update(message.as_bytes());
+                let d = hasher.finalize();
+                d.iter().copied().collect()
+            }
+            Some(Hash::SHA2_512) => {
+                let mut hasher = Sha512::new();
+                hasher.update(message.as_bytes());
+                let d = hasher.finalize();
+                d.iter().copied().collect()
+            }
+            _ => unimplemented!(),
+        },
+        _ => unimplemented!(),
+    };
     let signature_bytes = b64_decode(signature)?;
-    let n = BigUint::from_bytes_be(&b64_decode(components.0)?).to_bytes_be();
-    let e = BigUint::from_bytes_be(&b64_decode(components.1)?).to_bytes_be();
-    let pubkey = signature::RsaPublicKeyComponents { n, e };
-    let res = pubkey.verify(alg, message.as_ref(), &signature_bytes);
-    Ok(res.is_ok())
+    key.verify(alg, &digest, &signature_bytes)
+        .map_err(|_| errors::new_error(ErrorKind::InvalidSignature))?;
+    Ok(true)
 }
