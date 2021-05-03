@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use jsonwebtoken::{TokenData, Validation};
+use serde::Deserialize;
 
 use jwks_client::keyset::KeyStore;
 
