@@ -5,17 +5,37 @@ use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 use regex::Regex;
 
 use reqwest::Response;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{self, de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::error::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JWK {
-    pub alg: jsonwebtoken::Algorithm,
-    pub kid: String,
-    pub kty: String,
+    pub kty: JsonWebKeyTypes,
+    pub alg: Option<jsonwebtoken::Algorithm>,
+    pub kid: Option<String>,
+    #[serde(rename = "use")]
+    pub key_use: Option<JwkPublicKeyUse>,
+
     pub e: Option<String>,
     pub n: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum JsonWebKeyTypes {
+    #[serde(rename = "RSA")]
+    Rsa,
+    #[serde(rename = "EC")]
+    Ec,
+    #[serde(rename = "oct")]
+    OctetSeq,
+}
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum JwkPublicKeyUse {
+    #[serde(rename = "sig")]
+    Signature,
+    #[serde(rename = "enc")]
+    Encryption,
 }
 
 #[derive(Clone, Debug)]
@@ -27,7 +47,7 @@ pub struct JwtKey {
 #[derive(Debug, Clone)]
 pub enum JwtKeyKind {
     RSA(DecodingKey),
-    UnsupportedKty(String),
+    UnsupportedKty(JsonWebKeyTypes),
 }
 
 impl JwtKey {
@@ -57,7 +77,7 @@ impl JwtKey {
     pub fn decoding_key(&self) -> Result<&DecodingKey, Error> {
         match &self.kind {
             JwtKeyKind::RSA(key) => Ok(key),
-            JwtKeyKind::UnsupportedKty(kty) => Err(err("Unsupported key type", ErrorKind::UnsupportedKeyType(kty.to_owned()))),
+            JwtKeyKind::UnsupportedKty(kty) => Err(err("Unsupported key type", ErrorKind::UnsupportedKeyType(*kty))),
         }
     }
 }
@@ -65,13 +85,21 @@ impl JwtKey {
 impl TryFrom<JWK> for JwtKey {
     type Error = Error;
 
-    fn try_from(JWK { kid, alg, kty, n, e }: JWK) -> Result<Self, Error> {
-        let kind = match (kty.as_ref(), n, e) {
-            ("RSA", Some(n), Some(e)) => JwtKeyKind::RSA(DecodingKey::from_rsa_components(&n, &e).map_err(|x| Error {
+    fn try_from(JWK { kid, alg, kty, key_use, n, e }: JWK) -> Result<Self, Error> {
+        let kid = kid.ok_or(Error {
+            msg: "No key ID was specified in the JWK",
+            kind: ErrorKind::NoKeyId,
+        })?;
+        let alg = alg.ok_or(Error {
+            msg: "No algorithm was specified in the JWK",
+            kind: ErrorKind::NoAlgorithm,
+        })?;
+        let kind = match (kty, n, e) {
+            (JsonWebKeyTypes::Rsa, Some(n), Some(e)) => JwtKeyKind::RSA(DecodingKey::from_rsa_components(&n, &e).map_err(|x| Error {
                 msg: "Failed to construct RSA public key",
                 kind: ErrorKind::JwtDecodeError(Box::new(x.into_kind())),
             })?),
-            ("RSA", _, _) => return Err(err("RSA key misses parameters", ErrorKind::Key)),
+            (JsonWebKeyTypes::Rsa, _, _) => return Err(err("RSA key misses parameters", ErrorKind::Key)),
             (_, _, _) => JwtKeyKind::UnsupportedKty(kty),
         };
         Ok(JwtKey { alg, kid, kind })

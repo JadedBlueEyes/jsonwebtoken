@@ -26,11 +26,15 @@ pub enum ErrorKind {
     /// Could not download key set
     Connection,
     /// Unsupported key type, only RSA is currently supported
-    UnsupportedKeyType(String),
+    UnsupportedKeyType(crate::keyset::JsonWebKeyTypes),
     /// Algorithm mismatch - algorithm of token doesn't match intended algorithm of key
     AlgorithmMismatch,
     /// No remote store specified to fetch from in key_url
     NoRemoteStore,
+    /// No algorithm specified
+    NoAlgorithm,
+    /// No key ID specified
+    NoKeyId,
     /// Internal problem (Signals a serious bug or fatal error)
     Internal,
 }
