@@ -13,6 +13,8 @@ pub mod errors;
 mod header;
 mod serialization;
 mod validation;
+// JWK and JWKS types and functions
+pub mod jwk;
 
 pub use algorithms::Algorithm;
 #[allow(deprecated)]

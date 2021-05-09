@@ -1,7 +1,0 @@
-language: rust
-rust:
-  - nightly
-matrix:
-  allow_failures:
-    - rust: stable
-  fast_finish: true

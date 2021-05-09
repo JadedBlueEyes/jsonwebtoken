@@ -49,7 +49,7 @@ pub enum ErrorKind {
     /// When a key is provided with an invalid format
     InvalidKeyFormat,
 
-    // Validation errors
+    //  JWT Validation errors
     /// When a token’s `exp` claim indicates that it has expired
     ExpiredSignature,
     /// When a token’s `iss` claim does not match the expected issuer
@@ -63,6 +63,14 @@ pub enum ErrorKind {
     /// When the algorithm in the header doesn't match the one passed to `decode` or the encoding/decoding key
     /// used doesn't match the alg requested
     InvalidAlgorithm,
+
+    /// When the algorithm is not supported
+    UnsupportedAlgorithm,
+    /// When the key provided is unsupported
+    UnsupportedKeyType,
+
+    /// No key matched the conditions and worked successfully
+    NoWorkingKey,
 
     // 3rd party errors
     /// An error happened when decoding some base64 text
@@ -91,6 +99,9 @@ impl StdError for Error {
             ErrorKind::InvalidAlgorithm => None,
             ErrorKind::InvalidAlgorithmName => None,
             ErrorKind::InvalidKeyFormat => None,
+            ErrorKind::UnsupportedAlgorithm => None,
+            ErrorKind::UnsupportedKeyType => None,
+            ErrorKind::NoWorkingKey => None,
             ErrorKind::Base64(ref err) => Some(err),
             ErrorKind::Json(ref err) => Some(err),
             ErrorKind::Utf8(ref err) => Some(err),
@@ -110,9 +121,12 @@ impl fmt::Display for Error {
             | ErrorKind::InvalidIssuer
             | ErrorKind::InvalidAudience
             | ErrorKind::InvalidSubject
+            | ErrorKind::UnsupportedAlgorithm
+            | ErrorKind::UnsupportedKeyType
             | ErrorKind::ImmatureSignature
             | ErrorKind::InvalidAlgorithm
             | ErrorKind::InvalidKeyFormat
+            | ErrorKind::NoWorkingKey
             | ErrorKind::InvalidAlgorithmName => write!(f, "{:?}", self.0),
             ErrorKind::Json(ref err) => write!(f, "JSON error: {}", err),
             ErrorKind::Utf8(ref err) => write!(f, "UTF-8 error: {}", err),
