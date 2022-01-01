@@ -11,7 +11,7 @@ use crate::serialization::b64_encode_part;
 #[derive(Debug, Clone, PartialEq)]
 pub enum EncodingKey {
     Hmac(Vec<u8>),
-    Rsa(Box<rsa::RSAPrivateKey>),
+    Rsa(Box<rsa::RsaPrivateKey>),
     // EcPkcs8(Vec<u8>),
 }
 
@@ -26,7 +26,7 @@ impl EncodingKey {
         Ok(EncodingKey::Hmac(base64::decode(&secret)?))
     }
 
-    pub fn from_rsa(key: rsa::RSAPrivateKey) -> Result<Self> {
+    pub fn from_rsa(key: rsa::RsaPrivateKey) -> Result<Self> {
         Ok(EncodingKey::Rsa(Box::new(key)))
     }
 }

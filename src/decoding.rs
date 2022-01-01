@@ -1,4 +1,4 @@
-use rsa::RSAPublicKey;
+use rsa::RsaPublicKey;
 use serde::de::DeserializeOwned;
 
 use crate::crypto::verify;
@@ -34,7 +34,7 @@ macro_rules! expect_two {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DecodingKey {
     Hmac(Vec<u8>),
-    Rsa(rsa::RSAPublicKey),
+    Rsa(rsa::RsaPublicKey),
     // EcPkcs8(Vec<u8>),
 }
 
@@ -49,7 +49,7 @@ impl DecodingKey {
         Ok(DecodingKey::Hmac(base64::decode(&secret)?))
     }
 
-    pub fn from_rsa(key: rsa::RSAPublicKey) -> Result<Self> {
+    pub fn from_rsa(key: rsa::RsaPublicKey) -> Result<Self> {
         Ok(DecodingKey::Rsa(key))
     }
 
@@ -59,7 +59,7 @@ impl DecodingKey {
         let n = rsa::BigUint::from_bytes_be(&b64_decode(n)?);
         let e = rsa::BigUint::from_bytes_be(&b64_decode(e)?);
         Ok(DecodingKey::Rsa(
-            RSAPublicKey::new(n, e).map_err(|_| new_error(ErrorKind::InvalidKeyFormat))?,
+            RsaPublicKey::new(n, e).map_err(|_| new_error(ErrorKind::InvalidKeyFormat))?,
         ))
     }
 }

@@ -3,7 +3,11 @@ use jsonwebtoken::{
     crypto::{sign, verify},
     decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
 };
-use rsa::{RSAPrivateKey, RSAPublicKey};
+use rsa::{
+    pkcs1::{FromRsaPrivateKey, FromRsaPublicKey},
+    pkcs8::{FromPrivateKey, FromPublicKey},
+    RsaPrivateKey, RsaPublicKey,
+};
 use serde::{Deserialize, Serialize};
 
 const RSA_ALGORITHMS: &[Algorithm] = &[
@@ -22,23 +26,12 @@ pub struct Claims {
     exp: i64,
 }
 
-fn pem_to_der(pem: &str) -> Vec<u8> {
-    base64::decode(pem.split('\n').filter(|line| !line.starts_with('-')).fold(
-        String::new(),
-        |mut data, line| {
-            data.push_str(&line);
-            data
-        },
-    ))
-    .unwrap()
-}
-
 #[test]
 fn round_trip_sign_verification_pem_pkcs1() {
     let privkey =
-        RSAPrivateKey::from_pkcs1(&pem_to_der(include_str!("private_rsa_key_pkcs1.pem"))).unwrap();
+        RsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem")).unwrap();
     let pubkey =
-        RSAPublicKey::from_pkcs1(&pem_to_der(include_str!("public_rsa_key_pkcs1.pem"))).unwrap();
+        RsaPublicKey::from_pkcs1_pem(include_str!("public_rsa_key_pkcs1.pem")).unwrap();
 
     for &alg in RSA_ALGORITHMS {
         let encrypted =
@@ -53,9 +46,9 @@ fn round_trip_sign_verification_pem_pkcs1() {
 #[test]
 fn round_trip_sign_verification_pem_pkcs8() {
     let privkey =
-        RSAPrivateKey::from_pkcs8(&pem_to_der(include_str!("private_rsa_key_pkcs8.pem"))).unwrap();
+        RsaPrivateKey::from_pkcs8_pem(include_str!("private_rsa_key_pkcs8.pem")).unwrap();
     let pubkey =
-        RSAPublicKey::from_pkcs8(&pem_to_der(include_str!("public_rsa_key_pkcs8.pem"))).unwrap();
+        RsaPublicKey::from_public_key_pem(include_str!("public_rsa_key_pkcs8.pem")).unwrap();
 
     for &alg in RSA_ALGORITHMS {
         let encrypted =
@@ -69,8 +62,8 @@ fn round_trip_sign_verification_pem_pkcs8() {
 
 #[test]
 fn round_trip_sign_verification_der() {
-    let privkey = RSAPrivateKey::from_pkcs1(include_bytes!("private_rsa_key.der")).unwrap();
-    let pubkey = RSAPublicKey::from_pkcs1(include_bytes!("public_rsa_key.der")).unwrap();
+    let privkey = RsaPrivateKey::from_pkcs1_der(include_bytes!("private_rsa_key.der")).unwrap();
+    let pubkey = RsaPublicKey::from_pkcs1_der(include_bytes!("public_rsa_key.der")).unwrap();
 
     for &alg in RSA_ALGORITHMS {
         let encrypted =
@@ -90,9 +83,9 @@ fn round_trip_claim() {
         exp: Utc::now().timestamp() + 10000,
     };
     let privkey =
-        RSAPrivateKey::from_pkcs1(&pem_to_der(include_str!("private_rsa_key_pkcs1.pem"))).unwrap();
+        RsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem")).unwrap();
     let pubkey =
-        RSAPublicKey::from_pkcs1(&pem_to_der(include_str!("public_rsa_key_pkcs1.pem"))).unwrap();
+        RsaPublicKey::from_pkcs1_pem(include_str!("public_rsa_key_pkcs1.pem")).unwrap();
 
     for &alg in RSA_ALGORITHMS {
         let token =
@@ -112,7 +105,7 @@ fn round_trip_claim() {
 #[test]
 fn rsa_modulus_exponent() {
     let privkey =
-        RSAPrivateKey::from_pkcs1(&pem_to_der(include_str!("private_rsa_key_pkcs1.pem"))).unwrap();
+        RsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem")).unwrap();
     let my_claims = Claims {
         sub: "b@b.com".to_string(),
         company: "ACME".to_string(),
@@ -139,8 +132,8 @@ fn rsa_modulus_exponent() {
 #[test]
 fn roundtrip_with_jwtio_example_jey() {
     let privkey =
-        RSAPrivateKey::from_pkcs1(&pem_to_der(include_str!("private_jwtio.pem"))).unwrap();
-    let pubkey = RSAPublicKey::from_pkcs8(&pem_to_der(include_str!("public_jwtio.pem"))).unwrap();
+        RsaPrivateKey::from_pkcs1_pem(include_str!("private_jwtio.pem")).unwrap();
+    let pubkey = RsaPublicKey::from_public_key_pem(include_str!("public_jwtio.pem")).unwrap();
 
     let my_claims = Claims {
         sub: "b@b.com".to_string(),
