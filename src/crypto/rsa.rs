@@ -3,13 +3,13 @@ use crate::errors;
 use crate::errors::{ErrorKind, Result};
 use crate::serialization::{b64_decode, b64_encode};
 use ::rsa::{hash::Hash, padding::PaddingScheme};
-use rsa::{PublicKey, RSAPrivateKey, RSAPublicKey};
+use rsa::{PublicKey, RsaPrivateKey, RsaPublicKey};
 use sha2::{Digest, Sha256, Sha384, Sha512};
 
 /// The actual RSA signing + encoding
 /// The key needs to be in binary DER-encoded ASN.1 format
 /// Taken from Ring doc https://briansmith.org/rustdoc/ring/signature/index.html
-pub(crate) fn sign(alg: PaddingScheme, key: &RSAPrivateKey, message: &str) -> Result<String> {
+pub(crate) fn sign(alg: PaddingScheme, key: &RsaPrivateKey, message: &str) -> Result<String> {
     let digest: Vec<u8> = match alg {
         // PaddingScheme::OAEP {digest, ..} => {
         //     digest.update(message.as_bytes());
@@ -48,7 +48,7 @@ pub(crate) fn verify(
     alg: PaddingScheme,
     signature: &str,
     message: &str,
-    key: &RSAPublicKey,
+    key: &RsaPublicKey,
 ) -> Result<bool> {
     let digest: Vec<u8> = match alg {
         // PaddingScheme::OAEP {digest, ..} => {

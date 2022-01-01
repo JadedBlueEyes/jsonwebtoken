@@ -1,6 +1,6 @@
 [package]
 name = "jsonwebtoken"
-version = "8.0.0"
+version = "9.0.0"
 authors = ["Vincent Prouillet <hello@vincentprouillet.com>"]
 license = "MIT"
 readme = "README.md"
@@ -17,25 +17,25 @@ include = ["src/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
 # rsa_keys = ["rsa", "rand_core", "sha2"]
 
 [dependencies]
-serde_json = "1.0"
-serde = {version = "1.0", features = ["derive"] }
+serde_json = "1.0.67"
+serde = { version = "1.0.130", features = ["derive"] }
 
-base64 = "0.12"
+base64 = "0.13.0"
 
-rand_core = { version = "0.6" }
+rand_core = "0.6.3"
 
-rsa = { version = "0.4" }
-sha2 = { version = "0.9" }
+rsa = "0.5.0"
+sha2 = "0.9.8"
 
-hmac = { version = "0.11" }
-subtle = "2.4"
-crypto-mac = "0.11.0"
+hmac = "0.11.0"
+subtle = "2.4.1"
+crypto-mac = "0.11.1"
 
 [dev-dependencies]
 # For the custom chrono example
-chrono = "0.4"
-criterion = "0.3"
-reqwest = { version = "0.11", features = ["blocking", "json"] }
+chrono = "0.4.19"
+criterion = "0.3.5"
+reqwest = { version = "0.11.4", features = ["blocking", "json"] }
 
 [[bench]]
 name = "jwt"

@@ -1,5 +1,5 @@
 use std::convert::{TryFrom, TryInto};
-use std::time::Duration;
+// use std::time::Duration;
 
 use crate::{Algorithm, DecodingKey, TokenData, Validation, errors::new_error};
 use crate::{decode_header, decode, dangerous_insecure_decode_with_validation};
@@ -73,7 +73,7 @@ impl JWKDecodingKey {
 impl TryFrom<JWK> for JWKDecodingKey {
     type Error = Error;
 
-    fn try_from(JWK { kid, alg, kty, key_use, n, e }: JWK) -> Result<JWKDecodingKey> {
+    fn try_from(JWK { kid, alg, kty, key_use: _, n, e }: JWK) -> Result<JWKDecodingKey> {
         let key = match (kty, n, e) {
             (JsonWebKeyTypes::Rsa, Some(n), Some(e)) => JWKDecodingKey::new(kid, alg.clone(), DecodingKey::from_rsa_components(&n, &e)?),
             (JsonWebKeyTypes::Rsa, _, _) => return Err(new_error(ErrorKind::InvalidRsaKey)),
@@ -224,17 +224,11 @@ Ko5K8hGLY0C471Wy9yWk+hAI
         encode_token(claims)
     }
     fn encode_token(claims: serde_json::Map<String, serde_json::Value>) -> String {
-        let key = crate::EncodingKey::from_rsa(rsa::RSAPrivateKey::from_pkcs8(&pem_to_der(PRIVATE_KEY)).unwrap()).unwrap();
+        use rsa::pkcs8::FromPrivateKey;
+        let key = crate::EncodingKey::from_rsa(rsa::RsaPrivateKey::from_pkcs8_pem(PRIVATE_KEY).unwrap()).unwrap();
         let mut header = crate::Header::new(crate::Algorithm::RS256);
         header.kid = Some("1".to_owned());
         crate::encode(&header, &claims, &key).unwrap()
-    }
-    fn pem_to_der(pem: &str) -> Vec<u8> {
-        base64::decode(pem.split('\n').filter(|line| !line.starts_with('-')).fold(String::new(), |mut data, line| {
-            data.push_str(&line);
-            data
-        }))
-        .unwrap()
     }
 
     pub const TEST_CLAIMS: &str = r#"
