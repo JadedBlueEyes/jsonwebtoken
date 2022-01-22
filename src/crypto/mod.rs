@@ -1,4 +1,4 @@
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 
 use crate::algorithms::Algorithm;
 use crate::decoding::DecodingKey;
