@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use jsonwebtoken::errors::ErrorKind;
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken_rustcrypto::errors::ErrorKind;
+use jsonwebtoken_rustcrypto::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {

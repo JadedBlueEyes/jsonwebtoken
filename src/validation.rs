@@ -12,7 +12,7 @@ use crate::errors::{new_error, ErrorKind, Result};
 /// All time validation happen on UTC timestamps as seconds.
 ///
 /// ```rust
-/// use jsonwebtoken::Validation;
+/// use jsonwebtoken_rustcrypto::Validation;
 ///
 /// // Default value
 /// let validation = Validation::default();

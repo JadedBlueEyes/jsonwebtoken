@@ -36,7 +36,7 @@ impl EncodingKey {
 ///
 /// ```rust
 /// use serde::{Deserialize, Serialize};
-/// use jsonwebtoken::{encode, Algorithm, Header, EncodingKey};
+/// use jsonwebtoken_rustcrypto::{encode, Algorithm, Header, EncodingKey};
 ///
 /// #[derive(Debug, Serialize, Deserialize)]
 /// struct Claims {
