@@ -9,7 +9,7 @@ homepage = "https://github.com/JoelEllis/jsonwebtoken"
 repository = "https://github.com/JoelEllis/jsonwebtoken"
 keywords = ["jwt", "web", "api", "token", "jwk"]
 edition = "2021"
-include = ["src/**/*", "tests/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
+# include = ["src/**/*", "tests/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
 
 
 # [features]
