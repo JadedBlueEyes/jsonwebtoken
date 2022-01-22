@@ -1,15 +1,15 @@
 [package]
-name = "jsonwebtoken"
-version = "9.0.0"
-authors = ["Vincent Prouillet <hello@vincentprouillet.com>"]
+name = "jsonwebtoken-rustcrypto"
+version = "1.0.0"
+authors = ["Joel Ellis <joel@ellis.link>"]
 license = "MIT"
 readme = "README.md"
-description = "Create and decode JWTs in a strongly typed way."
-homepage = "https://github.com/Keats/jsonwebtoken"
-repository = "https://github.com/Keats/jsonwebtoken"
+description = "Create and decode JWTs in a strongly typed way, using crypto primatives from the RustCrypto proejct."
+homepage = "https://github.com/JoelEllis/jsonwebtoken"
+repository = "https://github.com/JoelEllis/jsonwebtoken"
 keywords = ["jwt", "web", "api", "token", "jwk"]
 edition = "2021"
-include = ["src/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
+include = ["src/**/*", "tests/**/*", "LICENSE", "README.md", "CHANGELOG.md"]
 
 
 # [features]
