@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]

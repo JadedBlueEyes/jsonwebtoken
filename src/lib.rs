@@ -1,6 +1,6 @@
 //! Create and parses JWT (JSON Web Tokens)
 //!
-//! Documentation:  [stable](https://docs.rs/jsonwebtoken/)
+//! Documentation:  [stable](https://docs.rs/jsonwebtoken-rustcrypto/)
 // #![deny(missing_docs)]
 
 mod algorithms;

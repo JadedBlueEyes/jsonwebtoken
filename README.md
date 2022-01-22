@@ -15,8 +15,8 @@ See [JSON Web Tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) for more inf
 Add the following to Cargo.toml:
 
 ```toml
-jsonwebtoken = "7"
-serde = {version = "1.0", features = ["derive"] }
+jsonwebtoken-rustcrypto = "1"
+serde = {version = "1", features = ["derive"] }
 ```
 
 The minimum required Rust version is 1.40.
@@ -160,7 +160,7 @@ something similar and reuse it.
 ### Validation
 
 ```rust
-use jsonwebtoken::{Validation, Algorithm};
+use jsonwebtoken_rustcrypto::{Validation, Algorithm};
 
 // Default validation: the only algo allowed is HS256
 let validation = Validation::default();

@@ -1,6 +1,6 @@
 use chrono::Utc;
-use jsonwebtoken::dangerous_insecure_decode_with_validation;
-use jsonwebtoken::{
+use jsonwebtoken_rustcrypto::dangerous_insecure_decode_with_validation;
+use jsonwebtoken_rustcrypto::{
     crypto::{sign, verify},
     dangerous_insecure_decode, decode, decode_header, encode, Algorithm, DecodingKey, EncodingKey,
     Header, Validation,
@@ -38,7 +38,7 @@ fn encode_with_custom_header() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let header = jsonwebtoken::Header { kid: Some("kid".to_string()), ..Default::default() };
+    let header = jsonwebtoken_rustcrypto::Header { kid: Some("kid".to_string()), ..Default::default() };
     let token = encode(&header, &my_claims, &EncodingKey::from_hmac_secret(b"secret")).unwrap();
     let token_data =
         decode::<Claims>(&token, &DecodingKey::from_hmac_secret(b"secret"), &Validation::default())

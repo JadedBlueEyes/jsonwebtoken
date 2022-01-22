@@ -70,7 +70,7 @@ impl DecodingKey {
 ///
 /// ```rust
 /// use serde::{Deserialize, Serialize};
-/// use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+/// use jsonwebtoken_rustcrypto::{decode, DecodingKey, Validation, Algorithm};
 ///
 /// #[derive(Debug, Serialize, Deserialize)]
 /// struct Claims {
@@ -111,7 +111,7 @@ pub fn decode<T: DeserializeOwned>(
 ///
 /// ```rust
 /// use serde::{Deserialize, Serialize};
-/// use jsonwebtoken::{dangerous_insecure_decode, Validation, Algorithm};
+/// use jsonwebtoken_rustcrypto::{dangerous_insecure_decode, Validation, Algorithm};
 ///
 /// #[derive(Debug, Serialize, Deserialize)]
 /// struct Claims {
@@ -141,7 +141,7 @@ pub fn dangerous_insecure_decode<T: DeserializeOwned>(token: &str) -> Result<Tok
 ///
 /// ```rust
 /// use serde::{Deserialize, Serialize};
-/// use jsonwebtoken::{dangerous_insecure_decode_with_validation, Validation, Algorithm};
+/// use jsonwebtoken_rustcrypto::{dangerous_insecure_decode_with_validation, Validation, Algorithm};
 ///
 /// #[derive(Debug, Serialize, Deserialize)]
 /// struct Claims {
@@ -184,7 +184,7 @@ pub fn dangerous_unsafe_decode<T: DeserializeOwned>(token: &str) -> Result<Token
 /// If the token has an invalid format (ie 3 parts separated by a `.`), it will return an error.
 ///
 /// ```rust
-/// use jsonwebtoken::decode_header;
+/// use jsonwebtoken_rustcrypto::decode_header;
 ///
 /// let token = "a.jwt.token".to_string();
 /// let header = decode_header(&token);

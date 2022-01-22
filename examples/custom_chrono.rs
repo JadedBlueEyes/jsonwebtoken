@@ -1,5 +1,5 @@
 use chrono::prelude::*;
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken_rustcrypto::{DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 const SECRET: &str = "some-secret";
@@ -56,7 +56,7 @@ mod jwt_numeric_date {
 
         use super::super::{Claims, SECRET};
         use chrono::{Duration, TimeZone, Utc};
-        use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+        use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 
         #[test]
         fn round_trip() {
@@ -134,7 +134,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let claims = Claims::new(sub, iat, exp);
 
-    let token = jsonwebtoken::encode(
+    let token = jsonwebtoken_rustcrypto::encode(
         &Header::default(),
         &claims,
         &EncodingKey::from_hmac_secret(SECRET.as_ref()),
@@ -142,7 +142,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("serialized token: {}", &token);
 
-    let token_data = jsonwebtoken::decode::<Claims>(
+    let token_data = jsonwebtoken_rustcrypto::decode::<Claims>(
         &token,
         &DecodingKey::from_hmac_secret(SECRET.as_ref()),
         &Validation::default(),

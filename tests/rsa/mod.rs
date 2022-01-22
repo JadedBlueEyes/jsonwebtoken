@@ -1,5 +1,5 @@
 use chrono::Utc;
-use jsonwebtoken::{
+use jsonwebtoken_rustcrypto::{
     crypto::{sign, verify},
     decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
 };
