@@ -1,8 +1,8 @@
 use std::convert::{TryFrom, TryInto};
 // use std::time::Duration;
 
-use crate::{Algorithm, DecodingKey, TokenData, Validation, errors::new_error};
-use crate::{decode_header, decode, dangerous_insecure_decode_with_validation};
+use crate::{dangerous_insecure_decode_with_validation, decode, decode_header};
+use crate::{errors::new_error, Algorithm, DecodingKey, TokenData, Validation};
 use serde::{self, de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::errors::{Error, ErrorKind, Result};
@@ -21,7 +21,7 @@ pub struct JWK {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JWKS {
-    keys: Vec<JWK>
+    keys: Vec<JWK>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -50,19 +50,16 @@ pub struct JWKDecodingKey {
 
 impl JWKDecodingKey {
     pub fn new(kid: Option<String>, alg: Option<Algorithm>, key: DecodingKey) -> JWKDecodingKey {
-        JWKDecodingKey {
-            alg,
-            kid,
-            key,
-        }
+        JWKDecodingKey { alg, kid, key }
     }
 
-    pub fn new_rsa(kid: std::option::Option<String>, alg: Option<Algorithm>, n: &str, e: &str) -> Result<JWKDecodingKey> {
-        Ok(JWKDecodingKey {
-            alg,
-            kid,
-            key: DecodingKey::from_rsa_components(n, e)?,
-        })
+    pub fn new_rsa(
+        kid: std::option::Option<String>,
+        alg: Option<Algorithm>,
+        n: &str,
+        e: &str,
+    ) -> Result<JWKDecodingKey> {
+        Ok(JWKDecodingKey { alg, kid, key: DecodingKey::from_rsa_components(n, e)? })
     }
 
     pub fn decoding_key(&self) -> &DecodingKey {
@@ -75,7 +72,9 @@ impl TryFrom<JWK> for JWKDecodingKey {
 
     fn try_from(JWK { kid, alg, kty, key_use: _, n, e }: JWK) -> Result<JWKDecodingKey> {
         let key = match (kty, n, e) {
-            (JsonWebKeyTypes::Rsa, Some(n), Some(e)) => JWKDecodingKey::new(kid, alg.clone(), DecodingKey::from_rsa_components(&n, &e)?),
+            (JsonWebKeyTypes::Rsa, Some(n), Some(e)) => {
+                JWKDecodingKey::new(kid, alg.clone(), DecodingKey::from_rsa_components(&n, &e)?)
+            }
             (JsonWebKeyTypes::Rsa, _, _) => return Err(new_error(ErrorKind::InvalidRsaKey)),
             (_, _, _) => return Err(new_error(ErrorKind::UnsupportedKeyType)),
         };
@@ -136,7 +135,11 @@ impl<'a> JWKDecodingKeySet {
     /// * Signature matches public key
     /// * It is not expired
     /// * The `nbf` is not set to before now
-    pub fn verify<T: DeserializeOwned>(&self, token: &str, validation: &Validation) -> Result<TokenData<T>> {
+    pub fn verify<T: DeserializeOwned>(
+        &self,
+        token: &str,
+        validation: &Validation,
+    ) -> Result<TokenData<T>> {
         let _ = dangerous_insecure_decode_with_validation::<serde_json::Value>(token, validation)?;
         let header = decode_header(token)?;
         // println!("{:?}", self.keys_by_id(header.kid.clone().unwrap()));
@@ -150,10 +153,11 @@ impl<'a> JWKDecodingKeySet {
             self.keys_by_id(kid.clone())
         } else {
             self.keys.clone()
-        }.iter().filter(|key| {if let Some(alg) = key.alg {
-            alg == header.alg
-        } else {true}}).find_map(|key| {decode(token, &key.key, &validation).ok()}).ok_or(new_error(ErrorKind::NoWorkingKey))?;
-        
+        }
+        .iter()
+        .filter(|key| if let Some(alg) = key.alg { alg == header.alg } else { true })
+        .find_map(|key| decode(token, &key.key, &validation).ok())
+        .ok_or(new_error(ErrorKind::NoWorkingKey))?;
 
         Ok(data)
     }
@@ -165,15 +169,17 @@ impl<'a> Default for JWKDecodingKeySet {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    use rsa::pkcs8::DecodePrivateKey;
     use serde::{Deserialize, Serialize};
 
-    use crate::{Algorithm, jwk::{JWKDecodingKeySet, JWKS}};
-
+    use crate::{
+        jwk::{JWKDecodingKeySet, JWKS},
+        Algorithm,
+    };
 
     const PRIVATE_KEY: &str = "-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC3k3jgfWalvlaX
@@ -206,26 +212,33 @@ Ko5K8hGLY0C471Wy9yWk+hAI
 ";
 
     fn valid_token() -> String {
-        let mut claims: serde_json::Map<String, serde_json::Value> = serde_json::from_str(TEST_CLAIMS).unwrap();
-        claims["exp"] = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 10).into();
+        let mut claims: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(TEST_CLAIMS).unwrap();
+        claims["exp"] =
+            (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 10).into();
 
         encode_token(claims)
     }
     fn early_token() -> String {
-        let mut claims: serde_json::Map<String, serde_json::Value> = serde_json::from_str(TEST_CLAIMS).unwrap();
-        claims["nbf"] = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 100).into();
-        claims["exp"] = (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 200).into();
+        let mut claims: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(TEST_CLAIMS).unwrap();
+        claims["nbf"] =
+            (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 100).into();
+        claims["exp"] =
+            (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 200).into();
 
         encode_token(claims)
     }
     fn expired_token() -> String {
-        let claims: serde_json::Map<String, serde_json::Value> = serde_json::from_str(TEST_CLAIMS).unwrap();
+        let claims: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(TEST_CLAIMS).unwrap();
 
         encode_token(claims)
     }
     fn encode_token(claims: serde_json::Map<String, serde_json::Value>) -> String {
-        use rsa::pkcs8::FromPrivateKey;
-        let key = crate::EncodingKey::from_rsa(rsa::RsaPrivateKey::from_pkcs8_pem(PRIVATE_KEY).unwrap()).unwrap();
+        let key =
+            crate::EncodingKey::from_rsa(rsa::RsaPrivateKey::from_pkcs8_pem(PRIVATE_KEY).unwrap())
+                .unwrap();
         let mut header = crate::Header::new(crate::Algorithm::RS256);
         header.kid = Some("1".to_owned());
         crate::encode(&header, &claims, &key).unwrap()
@@ -244,11 +257,10 @@ Ko5K8hGLY0C471Wy9yWk+hAI
         "nbf": 300,
         "email": "alovelace@example.com"
     }"#;
-    pub const KEY_URL: &str = "https://raw.githubusercontent.com/jfbilodeau/jwks-client/0.1.8/test/test-jwks.json";
+    pub const KEY_URL: &str =
+        "https://raw.githubusercontent.com/jfbilodeau/jwks-client/0.1.8/test/test-jwks.json";
     pub const E: &str = "AQAB";
     pub const N: &str = "t5N44H1mpb5Wlx_0e7CdoKTY8xt-3yMby8BgNdagVNkeCkZ4pRbmQXRWNC7qn__Zaxx9dnzHbzGCul5W0RLfd3oB3PESwsrQh-oiXVEPTYhvUPQkX0vBfCXJtg_zY2mY1DxKOIiXnZ8PaK_7Sx0aMmvR__0Yy2a5dIAWCmjPsxn-PcGZOkVUm-D5bH1-ZStcA_68r4ZSPix7Szhgl1RoHb9Q6JSekyZqM0Qfwhgb7srZVXC_9_m5PEx9wMVNYpYJBrXhD5IQm9RzE9oJS8T-Ai-4_5mNTNXI8f1rrYgffWS4wf9cvsEihrvEg9867B2f98L7ux9Llle7jsHCtwgV1w";
-    pub const N_INVALID: &str = "xt5N44H1mpb5Wlx_0e7CdoKTY8xt-3yMby8BgNdagVNkeCkZ4pRbmQXRWNC7qn__Zaxx9dnzHbzGCul5W0RLfd3oB3PESwsrQh-oiXVEPTYhvUPQkX0vBfCXJtg_zY2mY1DxKOIiXnZ8PaK_7Sx0aMmvR__0Yy2a5dIAWCmjPsxn-PcGZOkVUm-D5bH1-ZStcA_68r4ZSPix7Szhgl1RoHb9Q6JSekyZqM0Qfwhgb7srZVXC_9_m5PEx9wMVNYpYJBrXhD5IQm9RzE9oJS8T-Ai-4_5mNTNXI8f1rrYgffWS4wf9cvsEihrvEg9867B2f98L7ux9Llle7jsHCtwgV1w==";
-    // pub const TOKEN: &str = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyJuYW1lIjoiQWRhIExvdmVsYWNlIiwiaXNzIjoiaHR0cHM6Ly9jaHJvbm9nZWFycy5jb20vdGVzdCIsImF1ZCI6InRlc3QiLCJhdXRoX3RpbWUiOjEwMCwidXNlcl9pZCI6InVpZDEyMyIsInN1YiI6InNidTEyMyIsImlhdCI6MjAwLCJleHAiOjUwMCwibmJmIjozMDAsImVtYWlsIjoiYWxvdmVsYWNlQGNocm9ub2dlYXJzLmNvbSJ9.eTQnwXrri_uY55fS4IygseBzzbosDM1hP153EZXzNlLH5s29kdlGt2mL_KIjYmQa8hmptt9RwKJHBtw6l4KFHvIcuif86Ix-iI2fCpqNnKyGZfgERV51NXk1THkgWj0GQB6X5cvOoFIdHa9XvgPl_rVmzXSUYDgkhd2t01FOjQeeT6OL2d9KdlQHJqAsvvKVc3wnaYYoSqv2z0IluvK93Tk1dUBU2yWXH34nX3GAVGvIoFoNRiiFfZwFlnz78G0b2fQV7B5g5F8XlNRdD1xmVZXU8X2-xh9LqRpnEakdhecciFHg0u6AyC4c00rlo_HBb69wlXajQ3R4y26Kpxn7HA";
     pub const INV_CERT: &str = ".XXXeTQnwXrri_uY55fS4IygseBzzbosDM1hP153EZXzNlLH5s29kdlGt2mL_KIjYmQa8hmptt9RwKJHBtw6l4KFHvIcuif86Ix-iI2fCpqNnKyGZfgERV51NXk1THkgWj0GQB6X5cvOoFIdHa9XvgPl_rVmzXSUYDgkhd2t01FOjQeeT6OL2d9KdlQHJqAsvvKVc3wnaYYoSqv2z0IluvK93Tk1dUBU2yWXH34nX3GAVGvIoFoNRiiFfZwFlnz78G0b2fQV7B5g5F8XlNRdD1xmVZXU8X2-xh9LqRpnEakdhecciFHg0u6AyC4c00rlo_HBb69wlXajQ3R4y26Kpxn7HA";
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -274,10 +286,10 @@ Ko5K8hGLY0C471Wy9yWk+hAI
         assert_eq!(key_set.keys.len(), 1);
     }
 
-
     #[test]
     fn test_add_key() {
-        let key = crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
+        let key =
+            crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
 
         let mut key_set = JWKDecodingKeySet::new();
 
@@ -294,7 +306,8 @@ Ko5K8hGLY0C471Wy9yWk+hAI
 
     #[test]
     fn test_get_key() {
-        let key = crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
+        let key =
+            crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
 
         let mut key_set = JWKDecodingKeySet::new();
 
@@ -315,7 +328,8 @@ Ko5K8hGLY0C471Wy9yWk+hAI
 
     #[test]
     fn test_verify() {
-        let key = crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
+        let key =
+            crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
 
         let mut key_set = JWKDecodingKeySet::new();
 
@@ -331,7 +345,8 @@ Ko5K8hGLY0C471Wy9yWk+hAI
             iss: Some("https://example.com/test".to_owned()),
         };
 
-        let result: Result<crate::TokenData<TestClaims>, _> = key_set.verify(&valid_token(), &validation);
+        let result: Result<crate::TokenData<TestClaims>, _> =
+            key_set.verify(&valid_token(), &validation);
 
         assert!(result.is_ok(), "{:?}", result);
 
@@ -341,11 +356,13 @@ Ko5K8hGLY0C471Wy9yWk+hAI
         assert_eq!("Ada Lovelace", jwt.claims.name);
         assert_eq!("alovelace@example.com", jwt.claims.email);
 
-        let result: Result<crate::TokenData<TestClaims>, _> = key_set.verify(&early_token(), &validation); // early
+        let result: Result<crate::TokenData<TestClaims>, _> =
+            key_set.verify(&early_token(), &validation); // early
 
         assert_eq!(format!("{:?}", result), r#"Err(Error(ImmatureSignature))"#);
 
-        let result: Result<crate::TokenData<TestClaims>, _> = key_set.verify(&expired_token(), &validation); // late
+        let result: Result<crate::TokenData<TestClaims>, _> =
+            key_set.verify(&expired_token(), &validation); // late
 
         assert_eq!(format!("{:?}", result), r#"Err(Error(ExpiredSignature))"#);
     }
@@ -353,7 +370,8 @@ Ko5K8hGLY0C471Wy9yWk+hAI
     #[test]
     #[should_panic(expected = "NoWorkingKey")]
     fn test_verify_invalid_certificate() {
-        let key = crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
+        let key =
+            crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
 
         let mut key_set = JWKDecodingKeySet::new();
 
@@ -375,7 +393,8 @@ Ko5K8hGLY0C471Wy9yWk+hAI
     #[test]
     #[should_panic(expected = "NoWorkingKey")]
     fn test_verify_invalid_signature() {
-        let key = crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
+        let key =
+            crate::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), N, E);
 
         let mut key_set = JWKDecodingKeySet::new();
 
