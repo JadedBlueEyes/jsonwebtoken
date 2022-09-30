@@ -3,11 +3,6 @@ use jsonwebtoken_rustcrypto::{
     crypto::{sign, verify},
     decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
 };
-use rsa::{
-    pkcs1::{FromRsaPrivateKey, FromRsaPublicKey},
-    pkcs8::{FromPrivateKey, FromPublicKey},
-    RsaPrivateKey, RsaPublicKey,
-};
 use serde::{Deserialize, Serialize};
 
 const RSA_ALGORITHMS: &[Algorithm] = &[
@@ -28,10 +23,12 @@ pub struct Claims {
 
 #[test]
 fn round_trip_sign_verification_pem_pkcs1() {
-    let privkey =
-        RsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem")).unwrap();
-    let pubkey =
-        RsaPublicKey::from_pkcs1_pem(include_str!("public_rsa_key_pkcs1.pem")).unwrap();
+    let privkey: rsa::RsaPrivateKey =
+        rsa::pkcs1::DecodeRsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem"))
+            .unwrap();
+    let pubkey: rsa::RsaPublicKey =
+        rsa::pkcs1::DecodeRsaPublicKey::from_pkcs1_pem(include_str!("public_rsa_key_pkcs1.pem"))
+            .unwrap();
 
     for &alg in RSA_ALGORITHMS {
         let encrypted =
@@ -45,10 +42,12 @@ fn round_trip_sign_verification_pem_pkcs1() {
 
 #[test]
 fn round_trip_sign_verification_pem_pkcs8() {
-    let privkey =
-        RsaPrivateKey::from_pkcs8_pem(include_str!("private_rsa_key_pkcs8.pem")).unwrap();
-    let pubkey =
-        RsaPublicKey::from_public_key_pem(include_str!("public_rsa_key_pkcs8.pem")).unwrap();
+    let privkey: rsa::RsaPrivateKey =
+        rsa::pkcs8::DecodePrivateKey::from_pkcs8_pem(include_str!("private_rsa_key_pkcs8.pem"))
+            .unwrap();
+    let pubkey: rsa::RsaPublicKey =
+        rsa::pkcs8::DecodePublicKey::from_public_key_pem(include_str!("public_rsa_key_pkcs8.pem"))
+            .unwrap();
 
     for &alg in RSA_ALGORITHMS {
         let encrypted =
@@ -62,8 +61,12 @@ fn round_trip_sign_verification_pem_pkcs8() {
 
 #[test]
 fn round_trip_sign_verification_der() {
-    let privkey = RsaPrivateKey::from_pkcs1_der(include_bytes!("private_rsa_key.der")).unwrap();
-    let pubkey = RsaPublicKey::from_pkcs1_der(include_bytes!("public_rsa_key.der")).unwrap();
+    let privkey: rsa::RsaPrivateKey =
+        rsa::pkcs1::DecodeRsaPrivateKey::from_pkcs1_der(include_bytes!("private_rsa_key.der"))
+            .unwrap();
+    let pubkey: rsa::RsaPublicKey =
+        rsa::pkcs1::DecodeRsaPublicKey::from_pkcs1_der(include_bytes!("public_rsa_key.der"))
+            .unwrap();
 
     for &alg in RSA_ALGORITHMS {
         let encrypted =
@@ -82,10 +85,12 @@ fn round_trip_claim() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let privkey =
-        RsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem")).unwrap();
-    let pubkey =
-        RsaPublicKey::from_pkcs1_pem(include_str!("public_rsa_key_pkcs1.pem")).unwrap();
+    let privkey: rsa::RsaPrivateKey =
+        rsa::pkcs1::DecodeRsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem"))
+            .unwrap();
+    let pubkey: rsa::RsaPublicKey =
+        rsa::pkcs1::DecodeRsaPublicKey::from_pkcs1_pem(include_str!("public_rsa_key_pkcs1.pem"))
+            .unwrap();
 
     for &alg in RSA_ALGORITHMS {
         let token =
@@ -105,7 +110,8 @@ fn round_trip_claim() {
 #[test]
 fn rsa_modulus_exponent() {
     let privkey =
-        RsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem")).unwrap();
+        rsa::pkcs1::DecodeRsaPrivateKey::from_pkcs1_pem(include_str!("private_rsa_key_pkcs1.pem"))
+            .unwrap();
     let my_claims = Claims {
         sub: "b@b.com".to_string(),
         company: "ACME".to_string(),
@@ -131,9 +137,10 @@ fn rsa_modulus_exponent() {
 // https://jwt.io/ is often used for examples so ensure their example works with jsonwebtoken
 #[test]
 fn roundtrip_with_jwtio_example_jey() {
-    let privkey =
-        RsaPrivateKey::from_pkcs1_pem(include_str!("private_jwtio.pem")).unwrap();
-    let pubkey = RsaPublicKey::from_public_key_pem(include_str!("public_jwtio.pem")).unwrap();
+    let privkey: rsa::RsaPrivateKey =
+        rsa::pkcs1::DecodeRsaPrivateKey::from_pkcs1_pem(include_str!("private_jwtio.pem")).unwrap();
+    let pubkey: rsa::RsaPublicKey =
+        rsa::pkcs8::DecodePublicKey::from_public_key_pem(include_str!("public_jwtio.pem")).unwrap();
 
     let my_claims = Claims {
         sub: "b@b.com".to_string(),
