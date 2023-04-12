@@ -136,7 +136,7 @@ fn rsa_modulus_exponent() {
 
 // https://jwt.io/ is often used for examples so ensure their example works with jsonwebtoken
 #[test]
-fn roundtrip_with_jwtio_example_jey() {
+fn roundtrip_with_jwtio_example_key() {
     let privkey: rsa::RsaPrivateKey =
         rsa::pkcs1::DecodeRsaPrivateKey::from_pkcs1_pem(include_str!("private_jwtio.pem")).unwrap();
     let pubkey: rsa::RsaPublicKey =
