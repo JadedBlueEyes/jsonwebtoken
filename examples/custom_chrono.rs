@@ -56,7 +56,9 @@ mod jwt_numeric_date {
 
         use super::super::{Claims, SECRET};
         use chrono::{Duration, TimeZone, Utc};
-        use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+        use jsonwebtoken_rustcrypto::{
+            decode, encode, DecodingKey, EncodingKey, Header, Validation,
+        };
 
         #[test]
         fn round_trip() {
