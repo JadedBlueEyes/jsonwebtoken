@@ -6,7 +6,6 @@ use crate::encoding::EncodingKey;
 use crate::errors::{new_error, ErrorKind, Result};
 use crate::serialization::{b64_decode, b64_encode};
 
-
 use sha2::{Sha256, Sha384, Sha512};
 // pub(crate) mod ecdsa;
 pub(crate) mod rsa;
