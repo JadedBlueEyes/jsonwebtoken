@@ -5,7 +5,7 @@ use crate::decoding::DecodingKey;
 use crate::encoding::EncodingKey;
 use crate::errors::{new_error, ErrorKind, Result};
 use crate::serialization::{b64_decode, b64_encode};
-use ::rsa::{hash::Hash, padding::PaddingScheme};
+
 
 use sha2::{Sha256, Sha384, Sha512};
 // pub(crate) mod ecdsa;
@@ -78,27 +78,23 @@ pub fn sign(message: &str, key: &EncodingKey, algorithm: Algorithm) -> Result<St
             Algorithm::HS512 => sign_hmac(Algorithm::HS512, s, message),
             _ => Err(ErrorKind::InvalidAlgorithm.into()),
         },
+
         EncodingKey::Rsa(k) => match algorithm {
-            Algorithm::RS256 => {
-                rsa::sign(PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_256) }, k, message)
-            }
-            Algorithm::RS384 => {
-                rsa::sign(PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_384) }, k, message)
-            }
-            Algorithm::RS512 => {
-                rsa::sign(PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_512) }, k, message)
+            Algorithm::RS256 | Algorithm::RS384 | Algorithm::RS512 => {
+                rsa::sign(algorithm, k, message)
             }
             // Algorithm::PS256 => rsa::sign(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha256::default()) }, k, message),
             // Algorithm::PS384 => rsa::sign(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha384::default()) }, k, message),
             // Algorithm::PS512 => rsa::sign(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha512::default()) }, k, message),
             _ => Err(ErrorKind::InvalidAlgorithm.into()),
-        }, // EncodingKey::EcPkcs8(k)
-           //     => match algorithm {
-           //         Algorithm::ES256 | Algorithm::ES384 => {
-           //             ecdsa::sign_pkcs8(ecdsa::alg_to_ec_signing(algorithm), k, message)
-           //         },
-           //         _ => Err(ErrorKind::InvalidAlgorithm.into())
-           //     }
+        },
+        // EncodingKey::EcPkcs8(k)
+        //     => match algorithm {
+        //         Algorithm::ES256 | Algorithm::ES384 => {
+        //             ecdsa::sign_pkcs8(ecdsa::alg_to_ec_signing(algorithm), k, message)
+        //         },
+        //         _ => Err(ErrorKind::InvalidAlgorithm.into())
+        //     }
     }
 }
 
@@ -142,24 +138,9 @@ pub fn verify(
             _ => Err(ErrorKind::InvalidAlgorithm.into()),
         },
         DecodingKey::Rsa(k) => match algorithm {
-            Algorithm::RS256 => rsa::verify(
-                PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_256) },
-                signature,
-                message,
-                k,
-            ),
-            Algorithm::RS384 => rsa::verify(
-                PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_384) },
-                signature,
-                message,
-                k,
-            ),
-            Algorithm::RS512 => rsa::verify(
-                PaddingScheme::PKCS1v15Sign { hash: Some(Hash::SHA2_512) },
-                signature,
-                message,
-                k,
-            ),
+            Algorithm::RS256 | Algorithm::RS384 | Algorithm::RS512 => {
+                rsa::verify(algorithm, signature, message, k)
+            }
             // Algorithm::PS256 => rsa::verify(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha256::default()) }, signature, message, k),
             // Algorithm::PS384 => rsa::verify(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha384::default()) }, signature, message, k),
             // Algorithm::PS512 => rsa::verify(PaddingScheme::PSS{ salt_rng: Box::new(OsRng::default()), salt_len: None, digest: Box::new(Sha512::default()) }, signature, message, k),

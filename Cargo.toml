@@ -24,8 +24,8 @@ base64 = "0.13.0"
 
 rand_core = "0.6.4"
 
-rsa = "0.6.1"
-sha2 = "0.10.6"
+rsa = "0.8"
+sha2 = { version = "0.10.6", features = ["oid"] }
 
 hmac = "0.12.1"
 subtle = "2.4.1"
