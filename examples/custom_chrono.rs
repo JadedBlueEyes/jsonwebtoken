@@ -20,8 +20,8 @@ impl Claims {
     /// timestamps.
     pub fn new(sub: String, iat: DateTime<Utc>, exp: DateTime<Utc>) -> Self {
         // normalize the timestamps by stripping of microseconds
-        let iat = iat.date().and_hms_milli(iat.hour(), iat.minute(), iat.second(), 0);
-        let exp = exp.date().and_hms_milli(exp.hour(), exp.minute(), exp.second(), 0);
+        let iat = iat.with_nanosecond(0).unwrap();
+        let exp = exp.with_nanosecond(0).unwrap();
         Self { sub, iat, exp }
     }
 }
