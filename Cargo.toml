@@ -1,6 +1,6 @@
 [package]
 name = "jsonwebtoken-rustcrypto"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Joel Ellis <joel@ellis.link>"]
 license = "MIT"
 readme = "README.md"
