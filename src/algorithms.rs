@@ -10,8 +10,7 @@ pub(crate) enum AlgorithmFamily {
 }
 
 /// The algorithms supported for signing/verifying JWTs
-#[derive(Debug, PartialEq, Hash, Copy, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, PartialEq, Hash, Copy, Clone, Serialize, Deserialize, Default)]
 pub enum Algorithm {
     /// HMAC using SHA-256
     #[default]
@@ -39,8 +38,6 @@ pub enum Algorithm {
     // /// RSASSA-PSS using SHA-512
     // PS512,
 }
-
-
 
 impl FromStr for Algorithm {
     type Err = Error;
