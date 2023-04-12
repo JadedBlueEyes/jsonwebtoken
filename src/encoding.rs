@@ -23,7 +23,7 @@ impl EncodingKey {
 
     /// If you have a base64 HMAC secret, use that.
     pub fn from_base64_hmac_secret(secret: &str) -> Result<Self> {
-        Ok(EncodingKey::Hmac(base64::decode(&secret)?))
+        Ok(EncodingKey::Hmac(base64::decode(secret)?))
     }
 
     pub fn from_rsa(key: rsa::RsaPrivateKey) -> Result<Self> {
@@ -54,11 +54,11 @@ impl EncodingKey {
 /// let token = encode(&Header::default(), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref())).unwrap();
 /// ```
 pub fn encode<T: Serialize>(header: &Header, claims: &T, key: &EncodingKey) -> Result<String> {
-    let _ = crypto::validate_matching_key(key, header.alg)?;
+    crypto::validate_matching_key(key, header.alg)?;
     let encoded_header = b64_encode_part(&header)?;
     let encoded_claims = b64_encode_part(&claims)?;
     let message = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
-    let signature = crypto::sign(&*message, key, header.alg)?;
+    let signature = crypto::sign(&message, key, header.alg)?;
 
     Ok([message, signature].join("."))
 }

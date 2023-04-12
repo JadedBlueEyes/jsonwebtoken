@@ -46,7 +46,7 @@ impl DecodingKey {
 
     /// If you're using HMAC with a base64 encoded, use this.
     pub fn from_base64_hmac_secret(secret: &str) -> Result<Self> {
-        Ok(DecodingKey::Hmac(base64::decode(&secret)?))
+        Ok(DecodingKey::Hmac(base64::decode(secret)?))
     }
 
     pub fn from_rsa(key: rsa::RsaPublicKey) -> Result<Self> {

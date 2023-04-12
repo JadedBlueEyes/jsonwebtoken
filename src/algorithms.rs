@@ -11,8 +11,10 @@ pub(crate) enum AlgorithmFamily {
 
 /// The algorithms supported for signing/verifying JWTs
 #[derive(Debug, PartialEq, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Algorithm {
     /// HMAC using SHA-256
+    #[default]
     HS256,
     /// HMAC using SHA-384
     HS384,
@@ -38,11 +40,7 @@ pub enum Algorithm {
     // PS512,
 }
 
-impl Default for Algorithm {
-    fn default() -> Self {
-        Algorithm::HS256
-    }
-}
+
 
 impl FromStr for Algorithm {
     type Err = Error;

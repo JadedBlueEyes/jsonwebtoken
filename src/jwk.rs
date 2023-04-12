@@ -73,7 +73,7 @@ impl TryFrom<JWK> for JWKDecodingKey {
     fn try_from(JWK { kid, alg, kty, key_use: _, n, e }: JWK) -> Result<JWKDecodingKey> {
         let key = match (kty, n, e) {
             (JsonWebKeyTypes::Rsa, Some(n), Some(e)) => {
-                JWKDecodingKey::new(kid, alg.clone(), DecodingKey::from_rsa_components(&n, &e)?)
+                JWKDecodingKey::new(kid, alg, DecodingKey::from_rsa_components(&n, &e)?)
             }
             (JsonWebKeyTypes::Rsa, _, _) => return Err(new_error(ErrorKind::InvalidRsaKey)),
             (_, _, _) => return Err(new_error(ErrorKind::UnsupportedKeyType)),
@@ -87,7 +87,7 @@ pub struct JWKDecodingKeySet {
     pub(crate) keys: Vec<JWKDecodingKey>,
 }
 
-impl<'a> TryFrom<JWKS> for JWKDecodingKeySet {
+impl TryFrom<JWKS> for JWKDecodingKeySet {
     type Error = Error;
 
     fn try_from(jwks: JWKS) -> Result<Self> {
@@ -102,7 +102,7 @@ impl<'a> TryFrom<JWKS> for JWKDecodingKeySet {
 }
 
 #[allow(dead_code)]
-impl<'a> JWKDecodingKeySet {
+impl JWKDecodingKeySet {
     pub fn new() -> JWKDecodingKeySet {
         JWKDecodingKeySet { keys: Vec::new() }
     }
@@ -156,14 +156,14 @@ impl<'a> JWKDecodingKeySet {
         }
         .iter()
         .filter(|key| if let Some(alg) = key.alg { alg == header.alg } else { true })
-        .find_map(|key| decode(token, &key.key, &validation).ok())
+        .find_map(|key| decode(token, &key.key, validation).ok())
         .ok_or(new_error(ErrorKind::NoWorkingKey))?;
 
         Ok(data)
     }
 }
 
-impl<'a> Default for JWKDecodingKeySet {
+impl Default for JWKDecodingKeySet {
     fn default() -> Self {
         Self::new()
     }
