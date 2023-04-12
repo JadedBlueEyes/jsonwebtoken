@@ -17,17 +17,17 @@ edition = "2021"
 # rsa_keys = ["rsa", "rand_core", "sha2"]
 
 [dependencies]
-serde_json = "1.0.75"
-serde = { version = "1.0.134", features = ["derive"] }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 
 base64 = "0.13.0"
 
-rand_core = "0.6.3"
+rand_core = "0.6.4"
 
-rsa = "0.5.0"
-sha2 = "0.10.1"
+rsa = "0.6.1"
+sha2 = "0.10.6"
 
-hmac = "0.12.0"
+hmac = "0.12.1"
 subtle = "2.4.1"
 crypto-mac = "0.11.1"
 
