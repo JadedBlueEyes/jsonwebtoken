@@ -5,7 +5,6 @@ This is a fork of Keats' jsonwebtoken crate that uses RustCrypto crates (`rsa`, 
 Caveats:
 
 - No ECDSA: I didn't have a need for ECDSA or the time to research and implement EC using RustCrypto crates and I removed it to completely remove the ring dependency.
-- No PSS: I haven't implemented PS256, PS384, PS512 as I don't feel confident I know enough to implement it properly.
 - HMAC signature verification doesn't use constant time comparison like Keats's original does.
 
 See [JSON Web Tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) for more information on what JSON Web Tokens are.
@@ -31,12 +30,12 @@ This library currently supports the following:
 - RS256
 - RS384
 - RS512
-
-### Removed
-
 - PS256
 - PS384
 - PS512
+
+### Removed
+
 - ES256
 - ES384
 

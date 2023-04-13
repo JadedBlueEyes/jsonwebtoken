@@ -1,8 +1,9 @@
 # Changelog
 
-# 1.2.0 (2023-04-12)
+# 1.2.0 (2023-04-13)
 
  - Update RSA `0.6` -> `0.8`
+ - Update base64 `0.13` - `0.21`
  - Add PSS support
  - RSA signatures now use RNG, rather than being deterministic. 
 
