@@ -1,7 +1,9 @@
 # jsonwebtoken-rustcrypto
 
-This is a [JWT] library for Rust that uses the [RustCrypto] family of crates.
-It provides support for [many of the commonly used singing algorithms](#supported-algorithms) and allows [validation of token claims upon decoding](#validation). It also provides an implementation of [JSON Web Key Sets](#jwkS)
+- This is a [JWT] library for Rust that uses the [RustCrypto] family of crates.
+- It provides support for [many of the commonly used signing algorithms](#supported-algorithms) and allows [validation of token claims upon decoding](#validation). 
+- It is [significantly faster](#performance) than alternatives. 
+- It also provides an implementation of [JSON Web Key Sets](#jwkS)
 
 [jwt]: https://jwt.io
 [rustcrypto]: https://github.com/RustCrypto
@@ -206,3 +208,25 @@ Caveats compared to the original:
 
 -   No ECDSA: I didn't have a need for ECDSA or the time to research and implement EC using RustCrypto crates and I removed it to completely remove the ring dependency.
 -   HMAC signature verification doesn't use constant time comparison like Keats's original does.
+
+### Performance
+
+This crate is roughly ~30-40% faster than `jsonwebtoken`, although that is mostly incidental - performance is not the primary goal of this fork.
+
+
+```
+     Running benches/jwt.rs (~/.cache/cargo-target/release/deps/jwt-35f765b950aab3a3)
+bench_encode            time:   [734.68 ns 736.72 ns 738.93 ns]                          
+                        change: [-42.608% -42.334% -42.079%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) high mild
+  5 (5.00%) high severe
+
+bench_decode            time:   [1.3172 µs 1.3287 µs 1.3430 µs]                          
+                        change: [-33.374% -32.445% -31.518%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 8 outliers among 100 measurements (8.00%)
+  5 (5.00%) high mild
+  3 (3.00%) high severe
+```
