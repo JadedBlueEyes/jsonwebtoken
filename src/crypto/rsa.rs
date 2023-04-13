@@ -58,8 +58,7 @@ pub(crate) fn sign(alg: Algorithm, key: &RsaPrivateKey, message: &str) -> Result
         signatures_scheme.sign(Some(&mut rng), key, &digest).expect("failed to sign pkcs")
     } else if let Some(signatures_scheme) = signatures_scheme_pss {
         // PSS requires signing with RNG,otherwise it errors at runtime.
-        key.sign_with_rng(&mut rng, signatures_scheme, &digest).expect("failed to sign pss")
-        // signatures_scheme.sign(Some(&mut rng), key, &digest).expect("failed to sign pss")
+        signatures_scheme.sign(Some(&mut rng), key, &digest).expect("failed to sign pss")
     } else {
         return Err(ErrorKind::InvalidAlgorithmName.into());
     };
