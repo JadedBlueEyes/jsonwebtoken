@@ -2,9 +2,9 @@ const RSA_ALGORITHMS: &[(jsonwebtoken_rustcrypto::Algorithm, jsonwebtoken::Algor
     (jsonwebtoken_rustcrypto::Algorithm::RS256, jsonwebtoken::Algorithm::RS256),
     (jsonwebtoken_rustcrypto::Algorithm::RS384, jsonwebtoken::Algorithm::RS384),
     (jsonwebtoken_rustcrypto::Algorithm::RS512, jsonwebtoken::Algorithm::RS512),
-    // (jsonwebtoken_rustcrypto::Algorithm::PS256, jsonwebtoken::Algorithm::PS256),
-    // (jsonwebtoken_rustcrypto::Algorithm::PS384, jsonwebtoken::Algorithm::PS384),
-    // (jsonwebtoken_rustcrypto::Algorithm::PS512, jsonwebtoken::Algorithm::PS512),
+    (jsonwebtoken_rustcrypto::Algorithm::PS256, jsonwebtoken::Algorithm::PS256),
+    (jsonwebtoken_rustcrypto::Algorithm::PS384, jsonwebtoken::Algorithm::PS384),
+    (jsonwebtoken_rustcrypto::Algorithm::PS512, jsonwebtoken::Algorithm::PS512),
 ];
 
 #[test]

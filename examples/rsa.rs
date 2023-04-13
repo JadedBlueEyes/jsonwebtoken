@@ -15,9 +15,9 @@ const RSA_ALGORITHMS: &[Algorithm] = &[
     Algorithm::RS256,
     Algorithm::RS384,
     Algorithm::RS512,
-    // Algorithm::PS256,
-    // Algorithm::PS384,
-    // Algorithm::PS512,
+    Algorithm::PS256,
+    Algorithm::PS384,
+    Algorithm::PS512,
 ];
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
