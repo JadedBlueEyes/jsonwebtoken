@@ -8,6 +8,7 @@ use crate::header::Header;
 use crate::serialization::from_jwt_part_claims;
 use crate::validation::{validate, Validation};
 
+use base64::{engine::general_purpose::STANDARD, Engine};
 /// The return type of a successful call to [decode](fn.decode.html).
 #[derive(Debug)]
 pub struct TokenData<T> {
@@ -46,7 +47,7 @@ impl DecodingKey {
 
     /// If you're using HMAC with a base64 encoded, use this.
     pub fn from_base64_hmac_secret(secret: &str) -> Result<Self> {
-        Ok(DecodingKey::Hmac(base64::decode(secret)?))
+        Ok(DecodingKey::Hmac(STANDARD.decode(secret)?))
     }
 
     pub fn from_rsa(key: rsa::RsaPublicKey) -> Result<Self> {

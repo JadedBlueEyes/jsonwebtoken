@@ -1,3 +1,4 @@
+use base64::Engine;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use serde_json::map::Map;
@@ -6,11 +7,20 @@ use serde_json::{from_str, to_string, Value};
 use crate::errors::Result;
 
 pub(crate) fn b64_encode(input: &[u8]) -> String {
-    base64::encode_config(input, base64::URL_SAFE_NO_PAD)
+    let engine = base64::engine::GeneralPurpose::new(
+        &base64::alphabet::URL_SAFE,
+        base64::engine::GeneralPurposeConfig::new().with_encode_padding(false),
+    );
+    engine.encode(input)
 }
 
 pub(crate) fn b64_decode(input: &str) -> Result<Vec<u8>> {
-    base64::decode_config(input, base64::URL_SAFE_NO_PAD).map_err(|e| e.into())
+    let engine = base64::engine::GeneralPurpose::new(
+        &base64::alphabet::URL_SAFE,
+        base64::engine::GeneralPurposeConfig::new()
+            .with_decode_padding_mode(base64::engine::DecodePaddingMode::RequireNone),
+    );
+    Ok(engine.decode(input)?)
 }
 
 /// Serializes a struct to JSON and encodes it in base64

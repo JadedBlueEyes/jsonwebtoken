@@ -6,6 +6,8 @@ use crate::header::Header;
 // use crate::pem::decoder::PemEncodedKey;
 use crate::serialization::b64_encode_part;
 
+use base64::{engine::general_purpose::STANDARD, Engine};
+
 /// A key to encode a JWT with. Can be a secret, a PEM-encoded key or a DER-encoded key.
 /// This key can be re-used so make sure you only initialize it once if you can for better performance
 #[derive(Debug, Clone, PartialEq)]
@@ -23,7 +25,7 @@ impl EncodingKey {
 
     /// If you have a base64 HMAC secret, use that.
     pub fn from_base64_hmac_secret(secret: &str) -> Result<Self> {
-        Ok(EncodingKey::Hmac(base64::decode(secret)?))
+        Ok(EncodingKey::Hmac(STANDARD.decode(secret)?))
     }
 
     pub fn from_rsa(key: rsa::RsaPrivateKey) -> Result<Self> {
