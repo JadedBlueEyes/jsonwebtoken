@@ -28,6 +28,7 @@ fn main() {
                 _ => panic!("Some other errors"),
             },
         };
+
     println!("{:?}", token_data.claims);
     println!("{:?}", token_data.header);
 }
