@@ -33,7 +33,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [pinned, stable, nightly]
+        build: [stable, nightly]
         include:
           - build: stable
             os: ubuntu-20.04
