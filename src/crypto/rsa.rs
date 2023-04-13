@@ -45,9 +45,9 @@ pub(crate) fn sign(alg: Algorithm, key: &RsaPrivateKey, message: &str) -> Result
     };
 
     let signatures_scheme_pss = match alg {
-        Algorithm::PS256 => Some(Pss::new::<Sha256>()),
-        Algorithm::PS384 => Some(Pss::new::<Sha384>()),
-        Algorithm::PS512 => Some(Pss::new::<Sha512>()),
+        Algorithm::PS256 => Some(Pss::new_with_salt::<Sha256>(digest.len())),
+        Algorithm::PS384 => Some(Pss::new_with_salt::<Sha384>(digest.len())),
+        Algorithm::PS512 => Some(Pss::new_with_salt::<Sha512>(digest.len())),
         _ => None,
     };
 
@@ -113,9 +113,9 @@ pub(crate) fn verify(
     };
 
     let signatures_scheme_pss = match alg {
-        Algorithm::PS256 => Some(Pss::new::<Sha256>()),
-        Algorithm::PS384 => Some(Pss::new::<Sha384>()),
-        Algorithm::PS512 => Some(Pss::new::<Sha512>()),
+        Algorithm::PS256 => Some(Pss::new_with_salt::<Sha256>(digest.len())),
+        Algorithm::PS384 => Some(Pss::new_with_salt::<Sha384>(digest.len())),
+        Algorithm::PS512 => Some(Pss::new_with_salt::<Sha512>(digest.len())),
         _ => None,
     };
 
