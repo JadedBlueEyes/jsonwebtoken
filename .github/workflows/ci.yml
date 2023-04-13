@@ -5,19 +5,18 @@ on:
       - master
   pull_request:
 
-
 jobs:
   style:
     name: Format
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt
-    - name: Check format
-      run: cargo fmt --check
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check format
+        run: cargo fmt --check
 
   clippy:
     name: Clippy
@@ -36,21 +35,21 @@ jobs:
       matrix:
         build: [pinned, stable, nightly]
         include:
-        - build: stable
-          os: ubuntu-20.04
-          rust: stable
-        - build: nightly
-          os: ubuntu-20.04
-          rust: nightly
+          - build: stable
+            os: ubuntu-20.04
+            rust: stable
+          - build: nightly
+            os: ubuntu-20.04
+            rust: nightly
     steps:
-    - uses: actions/checkout@v3
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
 
-    - name: Build System Info
-      run: rustc --version
+      - name: Build System Info
+        run: rustc --version
 
-    - name: Run tests default features
-      run: cargo test
+      - name: Run tests default features
+        run: cargo test
