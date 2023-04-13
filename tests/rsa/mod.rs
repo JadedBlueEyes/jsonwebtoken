@@ -5,13 +5,15 @@ use jsonwebtoken_rustcrypto::{
 };
 use serde::{Deserialize, Serialize};
 
+mod interop;
+
 const RSA_ALGORITHMS: &[Algorithm] = &[
     Algorithm::RS256,
     Algorithm::RS384,
     Algorithm::RS512,
-    // Algorithm::PS256,
-    // Algorithm::PS384,
-    // Algorithm::PS512,
+    Algorithm::PS256,
+    Algorithm::PS384,
+    Algorithm::PS512,
 ];
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
