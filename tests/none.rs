@@ -1,7 +1,6 @@
 use chrono::Utc;
 use jsonwebtoken_rustcrypto::dangerous_insecure_decode_with_validation;
 use jsonwebtoken_rustcrypto::{
-    crypto::{sign, verify},
     dangerous_insecure_decode, decode, decode_header, encode, Algorithm, DecodingKey, EncodingKey,
     Header, Validation,
 };
@@ -22,7 +21,7 @@ fn mismatching_algorithms_key() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let token = encode(
+    let _ = encode(
         &Header::new(jsonwebtoken_rustcrypto::Algorithm::None),
         &claims,
         &EncodingKey::from_secret(b"aa"),

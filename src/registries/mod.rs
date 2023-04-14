@@ -320,11 +320,7 @@ svt,"svt","# Signature Validation Token",Vec<String>,"An array of JWTs in string
 impl Header {
     /// Returns a JWT header with the algorithm given
     pub fn new(algorithm: Algorithm) -> Self {
-        Header {
-            typ: Some("JWT".to_string()),
-            alg: Some(algorithm),
-            ..Default::default()
-        }
+        Header { typ: Some("JWT".to_string()), alg: Some(algorithm), ..Default::default() }
     }
 
     /// Converts an encoded part into the Header struct if possible
