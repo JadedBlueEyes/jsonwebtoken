@@ -22,8 +22,8 @@ use crate::Algorithm;
 ///
 /// // Setting audience
 /// let mut validation = Validation::default();
-/// validation.set_audience(&["Me"]); // a single string
-/// validation.set_audience(&["Me", "You"]); // array of strings
+/// validation.set_audience(&"Me"); // a single string
+/// validation.set_audiences(&["Me", "You"]); // array of strings
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Validation {
@@ -73,8 +73,11 @@ impl Validation {
     }
 
     /// `aud` is a collection of one or more acceptable audience members
-    pub fn set_audience<T: ToString>(&mut self, items: &[T]) {
+    pub fn set_audiences<T: ToString>(&mut self, items: &[T]) {
         self.aud = Some(items.iter().map(|x| x.to_string()).collect())
+    }
+    pub fn set_audience<T: ToString>(&mut self, item: &T) {
+        self.aud = Some(HashSet::from([item.to_string()]))
     }
 }
 
@@ -358,7 +361,7 @@ mod tests {
         let mut claims = Map::new();
         claims.insert("aud".to_string(), to_value(["Everyone"]).unwrap());
         let mut validation = Validation { validate_exp: false, ..Validation::default() };
-        validation.set_audience(&["Everyone"]);
+        validation.set_audiences(&["Everyone"]);
         let res = validate(&claims, &validation);
         assert!(res.is_ok());
     }
@@ -368,7 +371,7 @@ mod tests {
         let mut claims = Map::new();
         claims.insert("aud".to_string(), to_value(["UserA", "UserB"]).unwrap());
         let mut validation = Validation { validate_exp: false, ..Validation::default() };
-        validation.set_audience(&["UserA", "UserB"]);
+        validation.set_audiences(&["UserA", "UserB"]);
         let res = validate(&claims, &validation);
         assert!(res.is_ok());
     }
@@ -378,7 +381,7 @@ mod tests {
         let mut claims = Map::new();
         claims.insert("aud".to_string(), to_value(["Everyone"]).unwrap());
         let mut validation = Validation { validate_exp: false, ..Validation::default() };
-        validation.set_audience(&["UserA", "UserB"]);
+        validation.set_audiences(&["UserA", "UserB"]);
         let res = validate(&claims, &validation);
         assert!(res.is_err());
 
@@ -393,7 +396,7 @@ mod tests {
         let mut claims = Map::new();
         claims.insert("aud".to_string(), to_value(["Everyone"]).unwrap());
         let mut validation = Validation { validate_exp: false, ..Validation::default() };
-        validation.set_audience(&["None"]);
+        validation.set_audiences(&["None"]);
         let res = validate(&claims, &validation);
         assert!(res.is_err());
 
@@ -407,7 +410,7 @@ mod tests {
     fn aud_missing_fails() {
         let claims = Map::new();
         let mut validation = Validation { validate_exp: false, ..Validation::default() };
-        validation.set_audience(&["None"]);
+        validation.set_audiences(&["None"]);
         let res = validate(&claims, &validation);
         assert!(res.is_err());
 

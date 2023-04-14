@@ -1,6 +1,4 @@
-//! Create and parses JWT (JSON Web Tokens)
-//!
-//! Documentation:  [stable](https://docs.rs/jsonwebtoken-rustcrypto/)
+#![doc = include_str!("../README.md")]
 // #![deny(missing_docs)]
 
 /// Lower level functions, if you want to do something other than JWTs

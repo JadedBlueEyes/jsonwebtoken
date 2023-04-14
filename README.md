@@ -23,7 +23,7 @@ serde = {version = "1", features = ["derive"] }
 
 ```rust
 use chrono::Utc;
-use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation, Algorithm};
 use serde::{Deserialize, Serialize};
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
@@ -41,7 +41,7 @@ let my_claims = Claims {
 };
 
 let token =
-    encode(&Header::default(), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
+    encode(&Header::new(Algorithm::HS512), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
 
 println!("Our encoded token: {token}");
 
@@ -54,13 +54,15 @@ let token_data = decode::<Claims>(
 assert_eq!(my_claims, token_data.claims);
 
 println!("Our decoded token: {:?}", token_data);
+
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 ### Encoding
 
-```rust
+```rust ignore
 // HS256
-let token = encode(&Header::default(), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
+let token = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
 // RSA
 let token = encode(&Header::new(Algorithm::RS256), &my_claims, &EncodingKey::from_rsa(RSAPrivateKey::new(&mut rng, bits).unwrap())?)?;
 ```
@@ -78,7 +80,7 @@ something similar and reuse it.
 
 ### Decoding
 
-```rust
+```rust ignore
 // `token` is a struct with 2 fields: `header` and `claims` where `claims` is your own struct.
 let token = decode::<Claims>(&token, &DecodingKey::from_hmac_secret("secret".as_ref()), &Validation::default())?;
 ```
@@ -103,7 +105,7 @@ As with encoding, when using HS256, HS2384 or HS512, the key is always a shared 
 
 In some cases, for example if you need to grab the `kid`, you can choose to decode only the header:
 
-```rust
+```rust ignore
 let header = decode_header(&token)?;
 ```
 
@@ -114,8 +116,8 @@ This does not perform any signature verification or validate the token claims. I
 All the parameters from the RFC are supported but the default header only has `typ` and `alg` set.
 If you want to set the `kid` parameter or change the algorithm for example:
 
-```rust
-let mut header = Header::new(Algorithm::HS512);
+```rust ignore
+let mut header = Header::new(Algorithm::HS384);
 header.kid = Some("blabla".to_owned());
 let token = encode(&header, &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
 ```
@@ -131,6 +133,8 @@ The library is aware of, and can validate, many of the fields you will find in a
 The claims fields which can be validated.
 
 ```rust
+use serde::{Serialize, Deserialize};
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     aud: String,         // Audience
@@ -168,7 +172,7 @@ let mut validation = Validation {iss: Some("issuer".to_string()), ..Default::def
 // Check the audience is one of the given values.
 let mut validation = Validation::default();
 validation.set_audience(&"Me"); // string
-validation.set_audience(&["Me", "You"]); // array of strings
+validation.set_audiences(&["Me", "You"]); // array of strings
 ```
 
 Look at `examples/validation.rs` for a full working example.
@@ -214,7 +218,7 @@ Caveats compared to the original:
 This crate is roughly ~30-40% faster than `jsonwebtoken`, although that is mostly incidental - performance is not the primary goal of this fork.
 
 
-```
+```text
      Running benches/jwt.rs (~/.cache/cargo-target/release/deps/jwt-35f765b950aab3a3)
 bench_encode            time:   [734.68 ns 736.72 ns 738.93 ns]                          
                         change: [-42.608% -42.334% -42.079%] (p = 0.00 < 0.05)
