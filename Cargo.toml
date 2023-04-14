@@ -4,7 +4,7 @@ version = "1.2.0"
 authors = ["Jade Ellis <jade@ellis.link>"]
 license = "MIT"
 readme = "README.md"
-description = "Create and decode JWTs in a strongly typed way, using crypto primatives from the RustCrypto proejct."
+description = "Create and decode JWTs and JWKS in a strongly typed way, using crypto primatives from the RustCrypto project."
 homepage = "https://github.com/JadedBlueEyes/jsonwebtoken"
 repository = "https://github.com/JadedBlueEyes/jsonwebtoken"
 keywords = ["jwt", "web", "api", "token", "jwk"]
@@ -46,4 +46,4 @@ name = "jwt"
 harness = false
 
 [badges]
-maintenance = { status = "passively-maintained" }
+maintenance = { status = "actively-maintained" }
