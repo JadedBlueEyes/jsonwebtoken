@@ -96,6 +96,16 @@ fn decode_token_invalid_signature() {
 
 #[test]
 #[should_panic(expected = "InvalidAlgorithm")]
+fn decode_token_invalid_signature_wrong_alg() {
+    let token =
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjIzODh9.wrong";
+    let claims =
+        decode::<Claims>(token, &DecodingKey::from_secret(b"secret"), &Validation::default());
+    claims.unwrap();
+}
+
+#[test]
+#[should_panic(expected = "InvalidAlgorithm")]
 fn decode_token_wrong_algorithm() {
     let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.I1BvFoHe94AFf09O6tDbcSB8-jp8w6xZqmyHIwPeSdY";
     let claims = decode::<Claims>(
@@ -106,17 +116,17 @@ fn decode_token_wrong_algorithm() {
     claims.unwrap();
 }
 
-// #[test]
-// #[should_panic(expected = "InvalidAlgorithm")]
-// fn encode_wrong_alg_family() {
-//     let my_claims = Claims {
-//         sub: "b@b.com".to_string(),
-//         company: "ACME".to_string(),
-//         exp: Utc::now().timestamp() + 10000,
-//     };
-//     let claims = encode(&Header::default(), &my_claims, &EncodingKey::from_pkcs8_ec(b"secret"));
-//     claims.unwrap();
-// }
+#[test]
+#[should_panic(expected = "InvalidAlgorithm")]
+fn encode_wrong_alg_family() {
+    let my_claims = Claims {
+        sub: "b@b.com".to_string(),
+        company: "ACME".to_string(),
+        exp: Utc::now().timestamp() + 10000,
+    };
+    let claims = encode(&Header::default(), &my_claims, &EncodingKey::from_secret(b"secret"));
+    claims.unwrap();
+}
 
 #[test]
 fn decode_token_with_bytes_secret() {
