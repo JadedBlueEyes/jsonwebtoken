@@ -1,8 +1,8 @@
 use serde::ser::Serialize;
 
-use crate::crypto;
 use crate::errors::Result;
-use crate::header::Header;
+use crate::Header;
+use crate::{crypto, errors::ErrorKind};
 // use crate::pem::decoder::PemEncodedKey;
 use crate::serialization::b64_encode_part;
 
@@ -53,14 +53,15 @@ impl EncodingKey {
 ///
 /// // my_claims is a struct that implements Serialize
 /// // This will create a JWT using HS256 as algorithm
-/// let token = encode(&Header::default(), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref())).unwrap();
+/// let token = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref())).unwrap();
 /// ```
 pub fn encode<T: Serialize>(header: &Header, claims: &T, key: &EncodingKey) -> Result<String> {
-    crypto::validate_matching_key(key, header.alg)?;
+    let alg = header.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
+    crypto::validate_matching_key(key, alg)?;
     let encoded_header = b64_encode_part(&header)?;
     let encoded_claims = b64_encode_part(&claims)?;
     let message = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
-    let signature = crypto::sign(&message, key, header.alg)?;
+    let signature = crypto::sign(&message, key, alg)?;
 
     Ok([message, signature].join("."))
 }

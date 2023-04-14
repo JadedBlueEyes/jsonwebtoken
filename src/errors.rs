@@ -60,8 +60,9 @@ pub enum ErrorKind {
     InvalidSubject,
     /// When a token’s nbf claim represents a time in the future
     ImmatureSignature,
-    /// When the algorithm in the header doesn't match the one passed to `decode` or the encoding/decoding key
-    /// used doesn't match the alg requested
+    /// When the algorithm in the header doesn't match the one passed to `decode`,
+    /// the encoding/decoding key used doesn't match the alg requested
+    /// or no algorithm is provided to the encoder.
     InvalidAlgorithm,
 
     /// When the algorithm is not supported

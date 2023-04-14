@@ -1,10 +1,10 @@
 use hmac::{Hmac, Mac};
 
-use crate::algorithms::Algorithm;
 use crate::decoding::DecodingKey;
 use crate::encoding::EncodingKey;
 use crate::errors::{new_error, ErrorKind, Result};
 use crate::serialization::{b64_decode, b64_encode};
+use crate::Algorithm;
 
 use sha2::{Sha256, Sha384, Sha512};
 // pub(crate) mod ecdsa;

@@ -3,54 +3,23 @@ use std::convert::{TryFrom, TryInto};
 
 use crate::{dangerous_insecure_decode_with_validation, decode, decode_header};
 use crate::{errors::new_error, Algorithm, DecodingKey, TokenData, Validation};
-use serde::{self, de::DeserializeOwned, Deserialize, Serialize};
+use serde::{self, de::DeserializeOwned, Deserialize};
 
 use crate::errors::{Error, ErrorKind, Result};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct JWK {
-    pub kty: JsonWebKeyTypes,
-    pub alg: Option<Algorithm>,
-    pub kid: Option<String>,
-    #[serde(rename = "use")]
-    pub key_use: Option<JwkPublicKeyUse>,
+use crate::registries::{JsonWebKeyType, Jwk, JwkSet};
 
-    pub e: Option<String>,
-    pub n: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct JWKS {
-    keys: Vec<JWK>,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum JsonWebKeyTypes {
-    #[serde(rename = "RSA")]
-    Rsa,
-    #[serde(rename = "EC")]
-    Ec,
-    #[serde(rename = "oct")]
-    OctetSeq,
-}
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum JwkPublicKeyUse {
-    #[serde(rename = "sig")]
-    Signature,
-    #[serde(rename = "enc")]
-    Encryption,
-}
-
-#[derive(Clone, Debug)]
-pub struct JWKDecodingKey {
+#[derive(Clone, Debug, Deserialize)]
+#[serde(try_from = "Jwk")]
+pub struct JwkDecodingKey {
     pub alg: Option<Algorithm>,
     pub kid: Option<String>,
     pub key: DecodingKey,
 }
 
-impl JWKDecodingKey {
-    pub fn new(kid: Option<String>, alg: Option<Algorithm>, key: DecodingKey) -> JWKDecodingKey {
-        JWKDecodingKey { alg, kid, key }
+impl JwkDecodingKey {
+    pub fn new(kid: Option<String>, alg: Option<Algorithm>, key: DecodingKey) -> JwkDecodingKey {
+        JwkDecodingKey { alg, kid, key }
     }
 
     pub fn new_rsa(
@@ -58,8 +27,8 @@ impl JWKDecodingKey {
         alg: Option<Algorithm>,
         n: &str,
         e: &str,
-    ) -> Result<JWKDecodingKey> {
-        Ok(JWKDecodingKey { alg, kid, key: DecodingKey::from_rsa_components(n, e)? })
+    ) -> Result<JwkDecodingKey> {
+        Ok(JwkDecodingKey { alg, kid, key: DecodingKey::from_rsa_components(n, e)? })
     }
 
     pub fn decoding_key(&self) -> &DecodingKey {
@@ -67,16 +36,17 @@ impl JWKDecodingKey {
     }
 }
 
-impl TryFrom<JWK> for JWKDecodingKey {
+impl TryFrom<Jwk> for JwkDecodingKey {
     type Error = Error;
-
-    fn try_from(JWK { kid, alg, kty, key_use: _, n, e }: JWK) -> Result<JWKDecodingKey> {
-        let key = match (kty, n, e) {
-            (JsonWebKeyTypes::Rsa, Some(n), Some(e)) => {
-                JWKDecodingKey::new(kid, alg, DecodingKey::from_rsa_components(&n, &e)?)
-            }
-            (JsonWebKeyTypes::Rsa, _, _) => return Err(new_error(ErrorKind::InvalidRsaKey)),
-            (_, _, _) => return Err(new_error(ErrorKind::UnsupportedKeyType)),
+    fn try_from(source: Jwk) -> Result<JwkDecodingKey> {
+        let key = match source.kty {
+            JsonWebKeyType::Rsa { n: Some(n), e: Some(e), .. } => JwkDecodingKey::new(
+                source.kid,
+                source.alg,
+                DecodingKey::from_rsa_components(&n, &e)?,
+            ),
+            JsonWebKeyType::Rsa { .. } => return Err(new_error(ErrorKind::InvalidRsaKey)),
+            _ => return Err(new_error(ErrorKind::UnsupportedKeyType)),
         };
         Ok(key)
     }
@@ -84,13 +54,13 @@ impl TryFrom<JWK> for JWKDecodingKey {
 
 #[derive(Clone)]
 pub struct JWKDecodingKeySet {
-    pub(crate) keys: Vec<JWKDecodingKey>,
+    pub(crate) keys: Vec<JwkDecodingKey>,
 }
 
-impl TryFrom<JWKS> for JWKDecodingKeySet {
+impl TryFrom<JwkSet> for JWKDecodingKeySet {
     type Error = Error;
 
-    fn try_from(jwks: JWKS) -> Result<Self> {
+    fn try_from(jwks: JwkSet) -> Result<Self> {
         let mut ks: JWKDecodingKeySet = JWKDecodingKeySet::new();
         for key in jwks.keys.iter() {
             if let Ok(k) = key.clone().try_into() {
@@ -112,7 +82,7 @@ impl JWKDecodingKeySet {
     }
 
     /// Fetch a key by key id (KID)
-    pub fn keys_by_id(&self, kid: String) -> Vec<JWKDecodingKey> {
+    pub fn keys_by_id(&self, kid: String) -> Vec<JwkDecodingKey> {
         self.keys.iter().filter(|k| k.kid == Some(kid.clone())).cloned().collect()
     }
 
@@ -122,7 +92,7 @@ impl JWKDecodingKeySet {
     }
 
     /// Manually add a key to the keystore
-    pub fn add_key(&mut self, key: JWKDecodingKey) {
+    pub fn add_key(&mut self, key: JwkDecodingKey) {
         self.keys.push(key);
     }
 
@@ -155,7 +125,14 @@ impl JWKDecodingKeySet {
             self.keys.clone()
         }
         .iter()
-        .filter(|key| if let Some(alg) = key.alg { alg == header.alg } else { true })
+        .filter(|key| {
+            if let (Some(alg), Some(header_alg)) = (key.alg, header.alg) {
+                alg == header_alg
+            } else {
+                // If alg is not set, pass, otherwise fail.
+                !matches!(key.alg, Some(_))
+            }
+        })
         .find_map(|key| decode(token, &key.key, validation).ok())
         .ok_or(new_error(ErrorKind::NoWorkingKey))?;
 
@@ -171,19 +148,25 @@ impl Default for JWKDecodingKeySet {
 
 #[cfg(test)]
 mod tests {
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
 
-    use crate::{jwk::{JWKDecodingKeySet, JWKS, JWKDecodingKey}, Algorithm};
+    use crate::{
+        jwk::{JWKDecodingKeySet, JwkDecodingKey},
+        registries::JwkSet,
+        Algorithm,
+    };
 
     #[derive(Serialize, Deserialize)]
+    #[serde(rename_all = "UPPERCASE")]
     struct RsaComponents {
-        E: String,
-        N: String,
+        e: String,
+        n: String,
     }
 
     #[test]
     fn test_from_json() {
-        let jwks: JWKS = serde_json::from_str(include_str!("../tests/jwk/test-jwks.json")).unwrap();
+        let jwks: JwkSet =
+            serde_json::from_str(include_str!("../tests/jwk/test-jwks.json")).unwrap();
         assert_eq!(jwks.keys.len(), 2);
         let key_set: JWKDecodingKeySet = jwks.try_into().unwrap();
         assert_eq!(key_set.keys.len(), 1);
@@ -191,12 +174,13 @@ mod tests {
 
     #[test]
     fn test_add_key() {
-        let exponents: RsaComponents = serde_json::from_str(include_str!("../tests/jwk/rsa-components.json")).unwrap();
-        let key = JWKDecodingKey::new_rsa(
+        let exponents: RsaComponents =
+            serde_json::from_str(include_str!("../tests/jwk/rsa-components.json")).unwrap();
+        let key = JwkDecodingKey::new_rsa(
             Some("1".into()),
             Some(Algorithm::RS256),
-            &exponents.N,
-            &exponents.E,
+            &exponents.n,
+            &exponents.e,
         );
 
         let mut key_set = JWKDecodingKeySet::new();

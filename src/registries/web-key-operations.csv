@@ -1,0 +1,8 @@
+"Sign","sign","Compute digital signature or MAC","RFC7517, Section 4.3"
+"Verify","verify","Verify digital signature or MAC","RFC7517, Section 4.3"
+"Encrypt","encrypt","Encrypt content","RFC7517, Section 4.3"
+"Decrypt","decrypt","Decrypt content and validate decryption, if applicable","RFC7517, Section 4.3"
+"WrapKey","wrapKey","Encrypt key","RFC7517, Section 4.3"
+"UnwrapKey","unwrapKey","Decrypt key and validate decryption, if applicable","RFC7517, Section 4.3"
+"DeriveKey","deriveKey","Derive key","RFC7517, Section 4.3"
+"DeriveBits","deriveBits","Derive bits not to be used as a key","RFC7517, Section 4.3"

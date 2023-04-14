@@ -4,8 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::map::Map;
 use serde_json::{from_value, Value};
 
-use crate::algorithms::Algorithm;
 use crate::errors::{new_error, ErrorKind, Result};
+use crate::Algorithm;
 
 /// Contains the various validations that are applied after decoding a JWT.
 ///

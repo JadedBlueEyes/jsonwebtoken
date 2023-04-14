@@ -1,0 +1,8 @@
+"P256","P-256","P-256 Curve","[RFC7518, Section 6.2.1.1]"
+"P384","P-384","P-384 Curve","[RFC7518, Section 6.2.1.1]"
+"P521","P-521","P-521 Curve","[RFC7518, Section 6.2.1.1]"
+"Ed25519","Ed25519","Ed25519 signature algorithm key pairs","[RFC8037, Section 3.1]"
+"Ed448","Ed448","Ed448 signature algorithm key pairs","[RFC8037, Section 3.1]"
+"X25519","X25519","X25519 function key pairs","[RFC8037, Section 3.2]"
+"X448","X448","X448 function key pairs","[RFC8037, Section 3.2]"
+"Secp256k1","secp256k1","SECG secp256k1 curve","[RFC8812, Section 3.1]"

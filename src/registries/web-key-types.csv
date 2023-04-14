@@ -1,0 +1,4 @@
+"Rsa","RSA","RSA","RFC7518, Section 6.3"
+"OctetSeq","oct","Octet sequence","RFC7518, Section 6.4"
+"Ec","EC","Elliptic Curve","RFC7518, Section 6.2"
+"OctetStringPairs","OKP","Octet string key pairs","RFC8037, Section 2"

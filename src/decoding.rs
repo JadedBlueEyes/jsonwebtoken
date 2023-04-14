@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 
 use crate::crypto::verify;
 use crate::errors::{new_error, ErrorKind, Result};
-use crate::header::Header;
+use crate::Header;
 // use crate::pem::decoder::PemEncodedKey;
 use crate::serialization::from_jwt_part_claims;
 use crate::validation::{validate, Validation};
@@ -15,6 +15,7 @@ pub struct TokenData<T> {
     /// The decoded JWT header
     pub header: Header,
     /// The decoded JWT claims
+    /// Note: see <https://www.iana.org/assignments/jwt/jwt.xhtml#claims> for many of the properties that you might encounter.
     pub claims: T,
 }
 
@@ -92,11 +93,13 @@ pub fn decode<T: DeserializeOwned>(
     let (claims, header) = expect_two!(message.rsplitn(2, '.'));
     let header = Header::from_encoded(header)?;
 
-    if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&header.alg) {
+    let alg = header.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
+
+    if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&alg) {
         return Err(new_error(ErrorKind::InvalidAlgorithm));
     }
 
-    if !verify(signature, message, key, header.alg)? {
+    if !verify(signature, message, key, alg)? {
         return Err(new_error(ErrorKind::InvalidSignature));
     }
 
@@ -161,8 +164,9 @@ pub fn dangerous_insecure_decode_with_validation<T: DeserializeOwned>(
     let (_, message) = expect_two!(token.rsplitn(2, '.'));
     let (claims, header) = expect_two!(message.rsplitn(2, '.'));
     let header = Header::from_encoded(header)?;
+    let alg = header.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
 
-    if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&header.alg) {
+    if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&alg) {
         return Err(new_error(ErrorKind::InvalidAlgorithm));
     }
 

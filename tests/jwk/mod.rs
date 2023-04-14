@@ -87,7 +87,7 @@ fn test_add_key() {
 
     let exponents: RsaComponents = serde_json::from_str(include_str!("rsa-components.json")).unwrap();
 
-    let key = jsonwebtoken_rustcrypto::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), &exponents.N, &exponents.E);
+    let key = jsonwebtoken_rustcrypto::jwk::JwkDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), &exponents.N, &exponents.E);
 
     let mut key_set = JWKDecodingKeySet::new();
 
@@ -105,7 +105,7 @@ fn test_add_key() {
 #[test]
 fn test_verify() {
     let exponents: RsaComponents = serde_json::from_str(include_str!("rsa-components.json")).unwrap();
-    let key = jsonwebtoken_rustcrypto::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), &exponents.N, &exponents.E);
+    let key = jsonwebtoken_rustcrypto::jwk::JwkDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), &exponents.N, &exponents.E);
 
     let mut key_set = JWKDecodingKeySet::new();
 
@@ -147,7 +147,7 @@ fn test_verify() {
 #[should_panic(expected = "NoWorkingKey")]
 fn test_verify_invalid_certificate() {
     let exponents: RsaComponents = serde_json::from_str(include_str!("rsa-components.json")).unwrap();
-    let key = jsonwebtoken_rustcrypto::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), &exponents.N, &exponents.E);
+    let key = jsonwebtoken_rustcrypto::jwk::JwkDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), &exponents.N, &exponents.E);
 
     let mut key_set = JWKDecodingKeySet::new();
 
@@ -170,7 +170,7 @@ fn test_verify_invalid_certificate() {
 #[should_panic(expected = "NoWorkingKey")]
 fn test_verify_invalid_signature() {
     let exponents: RsaComponents = serde_json::from_str(include_str!("rsa-components.json")).unwrap();
-    let key = jsonwebtoken_rustcrypto::jwk::JWKDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), &exponents.N, &exponents.E);
+    let key = jsonwebtoken_rustcrypto::jwk::JwkDecodingKey::new_rsa(Some("1".into()), Some(Algorithm::RS256), &exponents.N, &exponents.E);
 
     let mut key_set = JWKDecodingKeySet::new();
 

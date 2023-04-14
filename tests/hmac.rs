@@ -38,8 +38,10 @@ fn encode_with_custom_header() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let header =
-        jsonwebtoken_rustcrypto::Header { kid: Some("kid".to_string()), ..Default::default() };
+    let header = jsonwebtoken_rustcrypto::Header {
+        kid: Some("kid".to_string()),
+        ..jsonwebtoken_rustcrypto::Header::new(Algorithm::HS384)
+    };
     let token = encode(&header, &my_claims, &EncodingKey::from_hmac_secret(b"secret")).unwrap();
     let token_data =
         decode::<Claims>(&token, &DecodingKey::from_hmac_secret(b"secret"), &Validation::default())
@@ -55,8 +57,12 @@ fn round_trip_claim() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let token =
-        encode(&Header::default(), &my_claims, &EncodingKey::from_hmac_secret(b"secret")).unwrap();
+    let token = encode(
+        &Header::new(Algorithm::HS512),
+        &my_claims,
+        &EncodingKey::from_hmac_secret(b"secret"),
+    )
+    .unwrap();
     let token_data =
         decode::<Claims>(&token, &DecodingKey::from_hmac_secret(b"secret"), &Validation::default())
             .unwrap();
@@ -132,7 +138,7 @@ fn decode_token_with_bytes_secret() {
 fn decode_header_only() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjb21wYW55IjoiMTIzNDU2Nzg5MCIsInN1YiI6IkpvaG4gRG9lIn0.S";
     let header = decode_header(token).unwrap();
-    assert_eq!(header.alg, Algorithm::HS256);
+    assert_eq!(header.alg, Some(Algorithm::HS256));
     assert_eq!(header.typ, Some("JWT".to_string()));
 }
 
