@@ -67,9 +67,9 @@ pub fn validate_matching_key(key: &EncodingKey, algorithm: Algorithm) -> Result<
 }
 
 /// Take the payload of a JWT, sign it using the algorithm given and return
-/// the base64 url safe encoded of the result.
+/// the base64 url safe encoding of the result.
 ///
-/// If you just want to encode a JWT, use `encode` instead.
+/// If you just want to encode a JWT, use [`crate::encode`] instead.
 pub fn sign(message: &str, key: &EncodingKey, algorithm: Algorithm) -> Result<String> {
     match key {
         EncodingKey::Hmac(s) => match algorithm {

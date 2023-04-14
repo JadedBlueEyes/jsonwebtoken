@@ -1,13 +1,54 @@
+//! # JSON Web Key (JWK) implementation.
+//!
+//! ```
+//! # use chrono::Utc;
+//! use jsonwebtoken_rustcrypto::{decode, Algorithm, DecodingKey, TokenData, Validation, jwk::{JwkDecodingKey, JwkDecodingKeySet}, encode, Header, EncodingKey};
+//! # use rsa::{RsaPrivateKey, pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePrivateKey};
+//! # use serde::{Serialize, Deserialize};
+//! # use serde_json::{json, Value};
+//! #
+//! # #[derive(Debug, Serialize, Deserialize, PartialEq)]
+//! # struct Claims {
+//! #     sub: String,
+//! #     company: String,
+//! #     exp: usize,
+//! # }
+//!
+//! // Create a JWKS from a JSON file - we would grab from the provider's endpoint.
+//! let jwks: JwkDecodingKeySet = serde_json::from_str(include_str!("../tests/jwk/test-jwks.json")).unwrap();
+//!
+//! # let my_claims = Claims {
+//! #     sub: "b@b.com".to_string(),
+//! #     company: "ACME".to_string(),
+//! #     exp: Utc::now().timestamp() as usize + 10000,
+//! # };
+//! #
+//! # let priv_key = RsaPrivateKey::from_pkcs8_pem(include_str!("../tests/jwk/private.pem")).unwrap();
+//! #
+//! // Acquire a token to validate against the set - you would be using a token from the provider.
+//! let token = encode(
+//!     &Header::new(Algorithm::RS256),
+//!     &my_claims,
+//!     &EncodingKey::from_rsa(priv_key).unwrap(),
+//! )
+//! .unwrap();
+//!
+//! // Decode & validate the JWT using the JWK set
+//! let decoded_token: TokenData<Claims> = jwks.decode(
+//!     &token,
+//!     &Validation::new(Algorithm::RS256),
+//! ).unwrap();
+//!
+//! println!("Token: {:?}", decoded_token);
+//! ```
+
 use std::convert::{TryFrom, TryInto};
 // use std::time::Duration;
-
+use crate::errors::{Error, ErrorKind, Result};
+use crate::registries::{JsonWebKeyType, Jwk, JwkSet};
 use crate::{dangerous_insecure_decode_with_validation, decode, decode_header};
 use crate::{errors::new_error, Algorithm, DecodingKey, TokenData, Validation};
 use serde::{self, de::DeserializeOwned, Deserialize};
-
-use crate::errors::{Error, ErrorKind, Result};
-
-use crate::registries::{JsonWebKeyType, Jwk, JwkSet};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(try_from = "Jwk")]
@@ -52,16 +93,17 @@ impl TryFrom<Jwk> for JwkDecodingKey {
     }
 }
 
-#[derive(Clone)]
-pub struct JWKDecodingKeySet {
+#[derive(Clone, Deserialize)]
+#[serde(try_from = "JwkSet")]
+pub struct JwkDecodingKeySet {
     pub(crate) keys: Vec<JwkDecodingKey>,
 }
 
-impl TryFrom<JwkSet> for JWKDecodingKeySet {
+impl TryFrom<JwkSet> for JwkDecodingKeySet {
     type Error = Error;
 
     fn try_from(jwks: JwkSet) -> Result<Self> {
-        let mut ks: JWKDecodingKeySet = JWKDecodingKeySet::new();
+        let mut ks: JwkDecodingKeySet = JwkDecodingKeySet::new();
         for key in jwks.keys.iter() {
             if let Ok(k) = key.clone().try_into() {
                 ks.add_key(k);
@@ -72,9 +114,9 @@ impl TryFrom<JwkSet> for JWKDecodingKeySet {
 }
 
 #[allow(dead_code)]
-impl JWKDecodingKeySet {
-    pub fn new() -> JWKDecodingKeySet {
-        JWKDecodingKeySet { keys: Vec::new() }
+impl JwkDecodingKeySet {
+    pub fn new() -> JwkDecodingKeySet {
+        JwkDecodingKeySet { keys: Vec::new() }
     }
 
     pub fn clear_keys(&mut self) {
@@ -96,7 +138,7 @@ impl JWKDecodingKeySet {
         self.keys.push(key);
     }
 
-    /// Verify a JWT token.
+    /// Decode & verify a JWT token.
     /// If the token is valid, it is returned.
     ///
     /// A token is considered valid if:
@@ -105,7 +147,7 @@ impl JWKDecodingKeySet {
     /// * Signature matches public key
     /// * It is not expired
     /// * The `nbf` is not set to before now
-    pub fn verify<T: DeserializeOwned>(
+    pub fn decode<T: DeserializeOwned>(
         &self,
         token: &str,
         validation: &Validation,
@@ -140,7 +182,7 @@ impl JWKDecodingKeySet {
     }
 }
 
-impl Default for JWKDecodingKeySet {
+impl Default for JwkDecodingKeySet {
     fn default() -> Self {
         Self::new()
     }
@@ -151,7 +193,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use crate::{
-        jwk::{JWKDecodingKeySet, JwkDecodingKey},
+        jwk::{JwkDecodingKeySet, JwkDecodingKey},
         registries::JwkSet,
         Algorithm,
     };
@@ -168,7 +210,7 @@ mod tests {
         let jwks: JwkSet =
             serde_json::from_str(include_str!("../tests/jwk/test-jwks.json")).unwrap();
         assert_eq!(jwks.keys.len(), 2);
-        let key_set: JWKDecodingKeySet = jwks.try_into().unwrap();
+        let key_set: JwkDecodingKeySet = jwks.try_into().unwrap();
         assert_eq!(key_set.keys.len(), 1);
     }
 
@@ -183,7 +225,7 @@ mod tests {
             &exponents.e,
         );
 
-        let mut key_set = JWKDecodingKeySet::new();
+        let mut key_set = JwkDecodingKeySet::new();
 
         assert_eq!(0usize, key_set.keys.len());
 
