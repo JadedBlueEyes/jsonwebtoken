@@ -17,7 +17,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         exp: Utc::now().timestamp() as usize + 10000,
     };
 
-    let token = encode(&Header::default(), &my_claims, &EncodingKey::from_none())?;
+    let token = encode(
+        &Header::new(jsonwebtoken_rustcrypto::Algorithm::None),
+        &my_claims,
+        &EncodingKey::from_none(),
+    )?;
 
     println!("Our encoded token: {token}");
 

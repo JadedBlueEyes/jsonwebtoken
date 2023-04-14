@@ -283,10 +283,10 @@ macro_rules! make_header {
 
 // see web-signature-encryption-header-paramaters.csv
 make_header! {
-    /// A comprehensive JOSE header.
-    /// Defaults to JWT type and no algorithm.
+    /// A comprehensive JWT header.
+    /// By default, every field is empty.
     /// WARNING: this struct is not exhaustive. Always construct with `..Default::default()`.
-    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Default)]
     pub struct Header {
 typ,"typ","# Type",String,"The type of content encoded in the complete object (for example, JWT).","JWE, JWS","RFC7516, Section 4.1.11","RFC7515, Section 4.1.9"
 alg,"alg","# Algorithm",Algorithm,"The specific [`Algorithm`] used to encrypt or sign the object.","JWE, JWS","RFC7516, Section 4.1.1","RFC7515, Section 4.1.1"
@@ -316,8 +316,6 @@ ppt,"ppt","# PASSporT extension identifier",Vec<String>,"Required extensions to 
 svt,"svt","# Signature Validation Token",Vec<String>,"An array of JWTs in string format.\n<https://www.rfc-editor.org/rfc/rfc9321.html#name-svt-header-parameter>","JWS",,"RFC9321"
     }
 }
-/// A basic JWT header, the alg defaults to HS256 and typ is automatically
-/// set to `JWT`. All the other fields are optional.
 
 impl Header {
     /// Returns a JWT header with the algorithm given
@@ -325,30 +323,7 @@ impl Header {
         Header {
             typ: Some("JWT".to_string()),
             alg: Some(algorithm),
-            cty: None,
-            b64: None,
-            crit: None,
-            url: None,
-            nonce: None,
-            jku: None,
-            jwk: None,
-            kid: None,
-            iss: None,
-            sub: None,
-            aud: None,
-            x5u: None,
-            x5c: None,
-            x5t: None,
-            x5t_s256: None,
-            epk: None,
-            apu: None,
-            apv: None,
-            iv: None,
-            tag: None,
-            p2s: None,
-            p2c: None,
-            ppt: None,
-            svt: None,
+            ..Default::default()
         }
     }
 
@@ -358,13 +333,6 @@ impl Header {
         let s = String::from_utf8(decoded)?;
 
         Ok(serde_json::from_str(&s)?)
-    }
-}
-
-impl Default for Header {
-    /// Returns a JWT header using no algorithm
-    fn default() -> Self {
-        Header::new(Algorithm::default())
     }
 }
 

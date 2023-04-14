@@ -68,9 +68,12 @@ mod jwt_numeric_date {
 
             let claims = Claims::new(sub.clone(), iat, exp);
 
-            let token =
-                encode(&Header::default(), &claims, &EncodingKey::from_secret(SECRET.as_ref()))
-                    .expect("Failed to encode claims");
+            let token = encode(
+                &Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
+                &claims,
+                &EncodingKey::from_secret(SECRET.as_ref()),
+            )
+            .expect("Failed to encode claims");
 
             assert_eq!(&token, EXPECTED_TOKEN);
 
@@ -131,7 +134,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let claims = Claims::new(sub, iat, exp);
 
     let token = jsonwebtoken_rustcrypto::encode(
-        &Header::default(),
+        &Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
         &claims,
         &EncodingKey::from_secret(SECRET.as_ref()),
     )?;

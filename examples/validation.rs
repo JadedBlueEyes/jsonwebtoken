@@ -13,7 +13,11 @@ fn main() {
     let key = b"secret";
     let my_claims =
         Claims { sub: "b@b.com".to_owned(), company: "ACME".to_owned(), exp: 10000000000 };
-    let token = match encode(&Header::default(), &my_claims, &EncodingKey::from_secret(key)) {
+    let token = match encode(
+        &Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
+        &my_claims,
+        &EncodingKey::from_secret(key),
+    ) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error
     };

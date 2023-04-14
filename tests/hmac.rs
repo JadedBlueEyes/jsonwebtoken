@@ -124,7 +124,8 @@ fn encode_wrong_alg_family() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let claims = encode(&Header::default(), &my_claims, &EncodingKey::from_secret(b"secret"));
+    let claims =
+        encode(&Header::new(Algorithm::None), &my_claims, &EncodingKey::from_secret(b"secret"));
     claims.unwrap();
 }
 

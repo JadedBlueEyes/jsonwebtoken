@@ -14,12 +14,38 @@ pub struct Claims {
     exp: i64,
 }
 
+#[test]
+#[should_panic(expected = "InvalidAlgorithm")]
+fn mismatching_algorithms_key() {
+    let claims = Claims {
+        sub: "b@b.com".to_string(),
+        company: "ACME".to_string(),
+        exp: Utc::now().timestamp() + 10000,
+    };
+    let token = encode(
+        &Header::new(jsonwebtoken_rustcrypto::Algorithm::None),
+        &claims,
+        &EncodingKey::from_secret(b"aa"),
+    )
+    .unwrap();
+}
+
+#[test]
+#[should_panic(expected = "InvalidAlgorithm")]
+fn mismatching_algorithms_header() {
+    let my_claims = Claims {
+        sub: "b@b.com".to_string(),
+        company: "ACME".to_string(),
+        exp: Utc::now().timestamp() + 10000,
+    };
+    let claims = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_none());
+    claims.unwrap();
+}
 
 #[test]
 fn decode_token() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9";
-    let claims =
-        decode::<Claims>(token, &DecodingKey::from_none(), &Validation::default());
+    let claims = decode::<Claims>(token, &DecodingKey::from_none(), &Validation::default());
     println!("{:?}", claims);
     claims.unwrap();
 }
@@ -28,8 +54,7 @@ fn decode_token() {
 fn decode_token_invalid_signature() {
     let token =
         "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9.wrong";
-    let claims =
-        decode::<Claims>(token, &DecodingKey::from_none(), &Validation::default());
+    let claims = decode::<Claims>(token, &DecodingKey::from_none(), &Validation::default());
     claims.unwrap();
 }
 
@@ -54,19 +79,6 @@ fn decode_token_wrong_algorithm() {
     );
     claims.unwrap();
 }
-
-#[test]
-#[should_panic(expected = "InvalidAlgorithm")]
-fn encode_wrong_alg_family() {
-    let my_claims = Claims {
-        sub: "b@b.com".to_string(),
-        company: "ACME".to_string(),
-        exp: Utc::now().timestamp() + 10000,
-    };
-    let claims = encode(&Header::default(), &my_claims, &EncodingKey::from_secret(b"secret"));
-    claims.unwrap();
-}
-
 
 #[test]
 fn decode_header_only() {
@@ -99,7 +111,6 @@ fn dangerous_insecure_decode_token_with_validation() {
     claims.unwrap();
 }
 
-
 #[test]
 fn dangerous_insecure_decode_token_with_validation_no_signature() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9";
@@ -107,7 +118,6 @@ fn dangerous_insecure_decode_token_with_validation_no_signature() {
     println!("{:?}", claims);
     claims.unwrap();
 }
-
 
 #[test]
 fn dangerous_insecure_decode_token_with_validation_extraneous_signature() {

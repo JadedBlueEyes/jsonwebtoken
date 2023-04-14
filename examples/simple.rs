@@ -17,8 +17,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         exp: Utc::now().timestamp() as usize + 10000,
     };
 
-    let token =
-        encode(&Header::default(), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
+    let token = encode(
+        &Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
+        &my_claims,
+        &EncodingKey::from_secret("secret".as_ref()),
+    )?;
 
     println!("Our encoded token: {token}");
 
