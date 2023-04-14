@@ -41,13 +41,13 @@ let my_claims = Claims {
 };
 
 let token =
-    encode(&Header::new(Algorithm::HS512), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
+    encode(&Header::new(Algorithm::HS512), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
 
 println!("Our encoded token: {token}");
 
 let token_data = decode::<Claims>(
     &token,
-    &DecodingKey::from_hmac_secret("secret".as_ref()),
+    &DecodingKey::from_secret("secret".as_ref()),
     &Validation::default(),
 )?;
 
@@ -62,7 +62,7 @@ println!("Our decoded token: {:?}", token_data);
 
 ```rust ignore
 // HS256
-let token = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
+let token = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
 // RSA
 let token = encode(&Header::new(Algorithm::RS256), &my_claims, &EncodingKey::from_rsa(RSAPrivateKey::new(&mut rng, bits).unwrap())?)?;
 ```
@@ -82,7 +82,7 @@ something similar and reuse it.
 
 ```rust ignore
 // `token` is a struct with 2 fields: `header` and `claims` where `claims` is your own struct.
-let token = decode::<Claims>(&token, &DecodingKey::from_hmac_secret("secret".as_ref()), &Validation::default())?;
+let token = decode::<Claims>(&token, &DecodingKey::from_secret("secret".as_ref()), &Validation::default())?;
 ```
 
 Decoding a JWT also takes 3 parameters:
@@ -119,7 +119,7 @@ If you want to set the `kid` parameter or change the algorithm for example:
 ```rust ignore
 let mut header = Header::new(Algorithm::HS384);
 header.kid = Some("blabla".to_owned());
-let token = encode(&header, &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref()))?;
+let token = encode(&header, &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
 ```
 
 Look at `examples/custom_header.rs` for a full working example.
@@ -185,15 +185,16 @@ There is a JWK implementation under the `jwk` module.
 
 This library currently supports the following signing algorithms:
 
--   HS256
--   HS384
--   HS512
--   RS256
--   RS384
--   RS512
--   PS256
--   PS384
--   PS512
+- none
+- HS256
+- HS384
+- HS512
+- RS256
+- RS384
+- RS512
+- PS256
+- PS384
+- PS512
 
 ### Unsupported algorithms
 

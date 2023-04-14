@@ -8,24 +8,30 @@ use crate::serialization::b64_encode_part;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 
-/// A key to encode a JWT with. Can be a secret, a PEM-encoded key or a DER-encoded key.
-/// This key can be re-used so make sure you only initialize it once if you can for better performance
+/// A key to encode a JWT with. Can be nothing, a secret or an RSA private key
+/// This key can be re-used - so make sure you only initialize it once if you can for better performance
 #[derive(Debug, Clone, PartialEq)]
 pub enum EncodingKey {
-    Hmac(Vec<u8>),
+    None,
+    OctetSeq(Vec<u8>),
     Rsa(Box<rsa::RsaPrivateKey>),
-    // EcPkcs8(Vec<u8>),
+    // Ec
+    // OctetStringPairs
 }
 
 impl EncodingKey {
+    pub fn from_none() -> Self {
+        EncodingKey::None
+    }
+
     /// If you're using a HMAC secret that is not base64, use that.
-    pub fn from_hmac_secret(secret: &[u8]) -> Self {
-        EncodingKey::Hmac(secret.to_vec())
+    pub fn from_secret(secret: &[u8]) -> Self {
+        EncodingKey::OctetSeq(secret.to_vec())
     }
 
     /// If you have a base64 HMAC secret, use that.
-    pub fn from_base64_hmac_secret(secret: &str) -> Result<Self> {
-        Ok(EncodingKey::Hmac(STANDARD.decode(secret)?))
+    pub fn from_base64_secret(secret: &str) -> Result<Self> {
+        Ok(EncodingKey::OctetSeq(STANDARD.decode(secret)?))
     }
 
     pub fn from_rsa(key: rsa::RsaPrivateKey) -> Result<Self> {
@@ -53,7 +59,7 @@ impl EncodingKey {
 ///
 /// // my_claims is a struct that implements Serialize
 /// // This will create a JWT using HS256 as algorithm
-/// let token = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_hmac_secret("secret".as_ref())).unwrap();
+/// let token = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_secret("secret".as_ref())).unwrap();
 /// ```
 pub fn encode<T: Serialize>(header: &Header, claims: &T, key: &EncodingKey) -> Result<String> {
     let alg = header.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
@@ -61,7 +67,11 @@ pub fn encode<T: Serialize>(header: &Header, claims: &T, key: &EncodingKey) -> R
     let encoded_header = b64_encode_part(&header)?;
     let encoded_claims = b64_encode_part(&claims)?;
     let message = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
-    let signature = crypto::sign(&message, key, alg)?;
 
-    Ok([message, signature].join("."))
+    let signature = crypto::sign(&message, key, alg)?;
+    if let Some(sig) = signature {
+        Ok([message, sig].join("."))
+    } else {
+        Ok(message)
+    }
 }

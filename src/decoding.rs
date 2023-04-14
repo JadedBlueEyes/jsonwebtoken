@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 
 use crate::crypto::verify;
 use crate::errors::{new_error, ErrorKind, Result};
-use crate::Header;
+use crate::{Algorithm, Header};
 // use crate::pem::decoder::PemEncodedKey;
 use crate::serialization::from_jwt_part_claims;
 use crate::validation::{validate, Validation};
@@ -21,11 +21,11 @@ pub struct TokenData<T> {
 
 /// Takes the result of a rsplit and ensure we only get 2 parts
 /// Errors if we don't
-macro_rules! expect_two {
+macro_rules! expect_two_or_three {
     ($iter:expr) => {{
         let mut i = $iter;
         match (i.next(), i.next(), i.next()) {
-            (Some(first), Some(second), None) => (first, second),
+            (Some(first), Some(second), third) => (first, second, third),
             _ => return Err(new_error(ErrorKind::InvalidToken)),
         }
     }};
@@ -35,20 +35,28 @@ macro_rules! expect_two {
 /// This key can be re-used so make sure you only initialize it once if you can for better performance
 #[derive(Debug, Clone, PartialEq)]
 pub enum DecodingKey {
-    Hmac(Vec<u8>),
+    None,
+    OctetSeq(Vec<u8>),
     Rsa(rsa::RsaPublicKey),
-    // EcPkcs8(Vec<u8>),
+    // Ec
+    // OctetStringPairs
 }
 
 impl DecodingKey {
+    pub fn from_none() -> Self {
+        DecodingKey::None
+    }
+    pub fn is_none(&self) -> bool {
+        self == &DecodingKey::None
+    }
     /// If you're using HMAC, use this.
-    pub fn from_hmac_secret(secret: &[u8]) -> Self {
-        DecodingKey::Hmac(secret.to_vec())
+    pub fn from_secret(secret: &[u8]) -> Self {
+        DecodingKey::OctetSeq(secret.to_vec())
     }
 
     /// If you're using HMAC with a base64 encoded, use this.
-    pub fn from_base64_hmac_secret(secret: &str) -> Result<Self> {
-        Ok(DecodingKey::Hmac(STANDARD.decode(secret)?))
+    pub fn from_base64_secret(secret: &str) -> Result<Self> {
+        Ok(DecodingKey::OctetSeq(STANDARD.decode(secret)?))
     }
 
     pub fn from_rsa(key: rsa::RsaPublicKey) -> Result<Self> {
@@ -82,31 +90,35 @@ impl DecodingKey {
 ///
 /// let token = "a.jwt.token".to_string();
 /// // Claims is a struct that implements Deserialize
-/// let token_message = decode::<Claims>(&token, &DecodingKey::from_hmac_secret("secret".as_ref()), &Validation::new(Algorithm::HS256));
+/// let token_message = decode::<Claims>(&token, &DecodingKey::from_secret("secret".as_ref()), &Validation::new(Algorithm::HS256));
 /// ```
 pub fn decode<T: DeserializeOwned>(
     token: &str,
     key: &DecodingKey,
     validation: &Validation,
 ) -> Result<TokenData<T>> {
-    let (signature, message) = expect_two!(token.rsplitn(2, '.'));
-    let (claims, header) = expect_two!(message.rsplitn(2, '.'));
-    let header = Header::from_encoded(header)?;
+    let (header, claims, signature) = expect_two_or_three!(token.splitn(3, '.'));
+    let header_decoded = Header::from_encoded(header)?;
 
-    let alg = header.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
+    let alg = header_decoded.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
 
     if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&alg) {
         return Err(new_error(ErrorKind::InvalidAlgorithm));
     }
 
-    if !verify(signature, message, key, alg)? {
-        return Err(new_error(ErrorKind::InvalidSignature));
+    if (header_decoded.alg == Some(Algorithm::None)) & (key.is_none()) {
+    } else if let Some(signature) = signature {
+        if !verify(signature, &[header, claims].join("."), key, alg)? {
+            return Err(new_error(ErrorKind::InvalidSignature));
+        }
+    } else {
+        return Err(new_error(ErrorKind::MissingSignature));
     }
 
     let (decoded_claims, claims_map): (T, _) = from_jwt_part_claims(claims)?;
     validate(&claims_map, validation)?;
 
-    Ok(TokenData { header, claims: decoded_claims })
+    Ok(TokenData { header: header_decoded, claims: decoded_claims })
 }
 
 /// Decode a JWT without any signature verification/validations.
@@ -128,8 +140,7 @@ pub fn decode<T: DeserializeOwned>(
 /// let token_message = dangerous_insecure_decode::<Claims>(&token);
 /// ```
 pub fn dangerous_insecure_decode<T: DeserializeOwned>(token: &str) -> Result<TokenData<T>> {
-    let (_, message) = expect_two!(token.rsplitn(2, '.'));
-    let (claims, header) = expect_two!(message.rsplitn(2, '.'));
+    let (header, claims, _) = expect_two_or_three!(token.splitn(3, '.'));
     let header = Header::from_encoded(header)?;
 
     let (decoded_claims, _): (T, _) = from_jwt_part_claims(claims)?;
@@ -161,8 +172,7 @@ pub fn dangerous_insecure_decode_with_validation<T: DeserializeOwned>(
     token: &str,
     validation: &Validation,
 ) -> Result<TokenData<T>> {
-    let (_, message) = expect_two!(token.rsplitn(2, '.'));
-    let (claims, header) = expect_two!(message.rsplitn(2, '.'));
+    let (header, claims, _) = expect_two_or_three!(token.splitn(3, '.'));
     let header = Header::from_encoded(header)?;
     let alg = header.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
 
@@ -176,14 +186,6 @@ pub fn dangerous_insecure_decode_with_validation<T: DeserializeOwned>(
     Ok(TokenData { header, claims: decoded_claims })
 }
 
-/// Decode a JWT without any signature verification/validations. DEPRECATED.
-#[deprecated(
-    note = "This function has been renamed to `dangerous_insecure_decode` and will be removed in a later version."
-)]
-pub fn dangerous_unsafe_decode<T: DeserializeOwned>(token: &str) -> Result<TokenData<T>> {
-    dangerous_insecure_decode(token)
-}
-
 /// Decode a JWT without any signature verification/validations and return its [Header](struct.Header.html).
 ///
 /// If the token has an invalid format (ie 3 parts separated by a `.`), it will return an error.
@@ -195,7 +197,6 @@ pub fn dangerous_unsafe_decode<T: DeserializeOwned>(token: &str) -> Result<Token
 /// let header = decode_header(&token);
 /// ```
 pub fn decode_header(token: &str) -> Result<Header> {
-    let (_, message) = expect_two!(token.rsplitn(2, '.'));
-    let (_, header) = expect_two!(message.rsplitn(2, '.'));
+    let (header, _, _) = expect_two_or_three!(token.splitn(2, '.'));
     Header::from_encoded(header)
 }

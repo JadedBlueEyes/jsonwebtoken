@@ -47,7 +47,7 @@ fn round_trip_sign_verification_pem_pkcs1_crate_to_jsonwebtoken() {
         )
         .unwrap();
         let is_valid = jsonwebtoken::crypto::verify(
-            &encrypted,
+            &encrypted.unwrap(),
             "hello world".as_bytes(),
             &jsonwebtoken::DecodingKey::from_rsa_pem(pubkey_pem).unwrap(),
             *alg_ring,

@@ -193,7 +193,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use crate::{
-        jwk::{JwkDecodingKeySet, JwkDecodingKey},
+        jwk::{JwkDecodingKey, JwkDecodingKeySet},
         registries::JwkSet,
         Algorithm,
     };

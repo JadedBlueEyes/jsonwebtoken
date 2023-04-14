@@ -17,17 +17,16 @@ pub struct Claims {
 #[test]
 fn sign_hs256() {
     let result =
-        sign("hello world", &EncodingKey::from_hmac_secret(b"secret"), Algorithm::HS256).unwrap();
+        sign("hello world", &EncodingKey::from_secret(b"secret"), Algorithm::HS256).unwrap();
     let expected = "c0zGLzKEFWj0VxWuufTXiRMk5tlI5MbGDAYhzaxIYjo";
-    assert_eq!(result, expected);
+    assert_eq!(result.unwrap(), expected);
 }
 
 #[test]
 fn verify_hs256() {
     let sig = "c0zGLzKEFWj0VxWuufTXiRMk5tlI5MbGDAYhzaxIYjo";
     let valid =
-        verify(sig, "hello world", &DecodingKey::from_hmac_secret(b"secret"), Algorithm::HS256)
-            .unwrap();
+        verify(sig, "hello world", &DecodingKey::from_secret(b"secret"), Algorithm::HS256).unwrap();
     assert!(valid);
 }
 
@@ -42,9 +41,9 @@ fn encode_with_custom_header() {
         kid: Some("kid".to_string()),
         ..jsonwebtoken_rustcrypto::Header::new(Algorithm::HS384)
     };
-    let token = encode(&header, &my_claims, &EncodingKey::from_hmac_secret(b"secret")).unwrap();
+    let token = encode(&header, &my_claims, &EncodingKey::from_secret(b"secret")).unwrap();
     let token_data =
-        decode::<Claims>(&token, &DecodingKey::from_hmac_secret(b"secret"), &Validation::default())
+        decode::<Claims>(&token, &DecodingKey::from_secret(b"secret"), &Validation::default())
             .unwrap();
     assert_eq!(my_claims, token_data.claims);
     assert_eq!("kid", token_data.header.kid.unwrap());
@@ -57,14 +56,11 @@ fn round_trip_claim() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let token = encode(
-        &Header::new(Algorithm::HS512),
-        &my_claims,
-        &EncodingKey::from_hmac_secret(b"secret"),
-    )
-    .unwrap();
+    let token =
+        encode(&Header::new(Algorithm::HS512), &my_claims, &EncodingKey::from_secret(b"secret"))
+            .unwrap();
     let token_data =
-        decode::<Claims>(&token, &DecodingKey::from_hmac_secret(b"secret"), &Validation::default())
+        decode::<Claims>(&token, &DecodingKey::from_secret(b"secret"), &Validation::default())
             .unwrap();
     assert_eq!(my_claims, token_data.claims);
     assert!(token_data.header.kid.is_none());
@@ -74,7 +70,7 @@ fn round_trip_claim() {
 fn decode_token() {
     let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjI1MzI1MjQ4OTF9.9r56oF7ZliOBlOAyiOFperTGxBtPykRQiWNFxhDCW98";
     let claims =
-        decode::<Claims>(token, &DecodingKey::from_hmac_secret(b"secret"), &Validation::default());
+        decode::<Claims>(token, &DecodingKey::from_secret(b"secret"), &Validation::default());
     println!("{:?}", claims);
     claims.unwrap();
 }
@@ -84,7 +80,7 @@ fn decode_token() {
 fn decode_token_missing_parts() {
     let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
     let _claims =
-        decode::<Claims>(token, &DecodingKey::from_hmac_secret(b"secret"), &Validation::default())
+        decode::<Claims>(token, &DecodingKey::from_secret(b"secret"), &Validation::default())
             .unwrap();
 }
 
@@ -94,7 +90,7 @@ fn decode_token_invalid_signature() {
     let token =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.wrong";
     let claims =
-        decode::<Claims>(token, &DecodingKey::from_hmac_secret(b"secret"), &Validation::default());
+        decode::<Claims>(token, &DecodingKey::from_secret(b"secret"), &Validation::default());
     claims.unwrap();
 }
 
@@ -104,7 +100,7 @@ fn decode_token_wrong_algorithm() {
     let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.I1BvFoHe94AFf09O6tDbcSB8-jp8w6xZqmyHIwPeSdY";
     let claims = decode::<Claims>(
         token,
-        &DecodingKey::from_hmac_secret(b"secret"),
+        &DecodingKey::from_secret(b"secret"),
         &Validation::new(Algorithm::RS512),
     );
     claims.unwrap();
@@ -125,12 +121,9 @@ fn decode_token_wrong_algorithm() {
 #[test]
 fn decode_token_with_bytes_secret() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjI1MzI1MjQ4OTF9.Hm0yvKH25TavFPz7J_coST9lZFYH1hQo0tvhvImmaks";
-    let _claims = decode::<Claims>(
-        token,
-        &DecodingKey::from_hmac_secret(b"\x01\x02\x03"),
-        &Validation::default(),
-    )
-    .unwrap();
+    let _claims =
+        decode::<Claims>(token, &DecodingKey::from_secret(b"\x01\x02\x03"), &Validation::default())
+            .unwrap();
     // assert!(claims.is_ok());
 }
 

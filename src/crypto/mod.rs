@@ -43,7 +43,11 @@ pub(crate) fn sign_hmac(alg: Algorithm, key: &[u8], message: &str) -> Result<Str
 /// Validates that the key can be used with the given algorithm
 pub fn validate_matching_key(key: &EncodingKey, algorithm: Algorithm) -> Result<()> {
     match key {
-        EncodingKey::Hmac(_) => match algorithm {
+        EncodingKey::None => match algorithm {
+            Algorithm::None => Ok(()),
+            _ => Err(ErrorKind::InvalidAlgorithm.into()),
+        },
+        EncodingKey::OctetSeq(_) => match algorithm {
             Algorithm::HS256 => Ok(()),
             Algorithm::HS384 => Ok(()),
             Algorithm::HS512 => Ok(()),
@@ -70,12 +74,16 @@ pub fn validate_matching_key(key: &EncodingKey, algorithm: Algorithm) -> Result<
 /// the base64 url safe encoding of the result.
 ///
 /// If you just want to encode a JWT, use [`crate::encode`] instead.
-pub fn sign(message: &str, key: &EncodingKey, algorithm: Algorithm) -> Result<String> {
+pub fn sign(message: &str, key: &EncodingKey, algorithm: Algorithm) -> Result<Option<String>> {
     match key {
-        EncodingKey::Hmac(s) => match algorithm {
-            Algorithm::HS256 => sign_hmac(Algorithm::HS256, s, message),
-            Algorithm::HS384 => sign_hmac(Algorithm::HS384, s, message),
-            Algorithm::HS512 => sign_hmac(Algorithm::HS512, s, message),
+        EncodingKey::None => match algorithm {
+            Algorithm::None => Ok(None),
+            _ => Err(ErrorKind::InvalidAlgorithm.into()),
+        },
+        EncodingKey::OctetSeq(s) => match algorithm {
+            Algorithm::HS256 | Algorithm::HS384 | Algorithm::HS512 => {
+                sign_hmac(algorithm, s, message).map(Some)
+            }
             _ => Err(ErrorKind::InvalidAlgorithm.into()),
         },
 
@@ -85,7 +93,7 @@ pub fn sign(message: &str, key: &EncodingKey, algorithm: Algorithm) -> Result<St
             | Algorithm::RS512
             | Algorithm::PS256
             | Algorithm::PS384
-            | Algorithm::PS512 => rsa::sign(algorithm, k, message),
+            | Algorithm::PS512 => rsa::sign(algorithm, k, message).map(Some),
             _ => Err(ErrorKind::InvalidAlgorithm.into()),
         },
         // EncodingKey::EcPkcs8(k)
@@ -113,7 +121,8 @@ pub fn verify(
     algorithm: Algorithm,
 ) -> Result<bool> {
     match key {
-        DecodingKey::Hmac(s) => match algorithm {
+        DecodingKey::None => Err(new_error(ErrorKind::InvalidSignature)),
+        DecodingKey::OctetSeq(s) => match algorithm {
             Algorithm::HS256 => {
                 let mut mac = HmacSha256::new_from_slice(s).unwrap();
                 mac.update(message.as_bytes());

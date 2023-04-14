@@ -17,16 +17,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         exp: Utc::now().timestamp() as usize + 10000,
     };
 
-    let token =
-        encode(&Header::default(), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
+    let token = encode(&Header::default(), &my_claims, &EncodingKey::from_none())?;
 
     println!("Our encoded token: {token}");
 
-    let token_data = decode::<Claims>(
-        &token,
-        &DecodingKey::from_secret("secret".as_ref()),
-        &Validation::default(),
-    )?;
+    let token_data = decode::<Claims>(&token, &DecodingKey::from_none(), &Validation::default())?;
 
     assert_eq!(my_claims, token_data.claims);
 

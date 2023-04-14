@@ -33,8 +33,9 @@ fn round_trip_sign_verification_pem_pkcs1() {
             .unwrap();
 
     for &alg in RSA_ALGORITHMS {
-        let encrypted =
-            sign("hello world", &EncodingKey::from_rsa(privkey.clone()).unwrap(), alg).unwrap();
+        let encrypted = sign("hello world", &EncodingKey::from_rsa(privkey.clone()).unwrap(), alg)
+            .unwrap()
+            .unwrap();
         let is_valid =
             verify(&encrypted, "hello world", &DecodingKey::from_rsa(pubkey.clone()).unwrap(), alg)
                 .unwrap();
@@ -52,8 +53,9 @@ fn round_trip_sign_verification_pem_pkcs8() {
             .unwrap();
 
     for &alg in RSA_ALGORITHMS {
-        let encrypted =
-            sign("hello world", &EncodingKey::from_rsa(privkey.clone()).unwrap(), alg).unwrap();
+        let encrypted = sign("hello world", &EncodingKey::from_rsa(privkey.clone()).unwrap(), alg)
+            .unwrap()
+            .unwrap();
         let is_valid =
             verify(&encrypted, "hello world", &DecodingKey::from_rsa(pubkey.clone()).unwrap(), alg)
                 .unwrap();
@@ -71,8 +73,9 @@ fn round_trip_sign_verification_der() {
             .unwrap();
 
     for &alg in RSA_ALGORITHMS {
-        let encrypted =
-            sign("hello world", &EncodingKey::from_rsa(privkey.clone()).unwrap(), alg).unwrap();
+        let encrypted = sign("hello world", &EncodingKey::from_rsa(privkey.clone()).unwrap(), alg)
+            .unwrap()
+            .unwrap();
         let is_valid =
             verify(&encrypted, "hello world", &DecodingKey::from_rsa(pubkey.clone()).unwrap(), alg)
                 .unwrap();

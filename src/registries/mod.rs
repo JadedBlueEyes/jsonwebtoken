@@ -362,7 +362,7 @@ impl Header {
 }
 
 impl Default for Header {
-    /// Returns a JWT header using the default Algorithm, HS256
+    /// Returns a JWT header using no algorithm
     fn default() -> Self {
         Header::new(Algorithm::default())
     }

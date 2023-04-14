@@ -68,18 +68,15 @@ mod jwt_numeric_date {
 
             let claims = Claims::new(sub.clone(), iat, exp);
 
-            let token = encode(
-                &Header::default(),
-                &claims,
-                &EncodingKey::from_hmac_secret(SECRET.as_ref()),
-            )
-            .expect("Failed to encode claims");
+            let token =
+                encode(&Header::default(), &claims, &EncodingKey::from_secret(SECRET.as_ref()))
+                    .expect("Failed to encode claims");
 
             assert_eq!(&token, EXPECTED_TOKEN);
 
             let decoded = decode::<Claims>(
                 &token,
-                &DecodingKey::from_hmac_secret(SECRET.as_ref()),
+                &DecodingKey::from_secret(SECRET.as_ref()),
                 &Validation::default(),
             )
             .expect("Failed to decode token");
@@ -94,7 +91,7 @@ mod jwt_numeric_date {
 
             let decode_result = decode::<Claims>(
                 &overflow_token,
-                &DecodingKey::from_hmac_secret(SECRET.as_ref()),
+                &DecodingKey::from_secret(SECRET.as_ref()),
                 &Validation::default(),
             );
 
@@ -109,16 +106,13 @@ mod jwt_numeric_date {
 
             let claims = Claims::new(sub.clone(), iat, exp);
 
-            let token = encode(
-                &Header::default(),
-                &claims,
-                &EncodingKey::from_hmac_secret(SECRET.as_ref()),
-            )
-            .expect("Failed to encode claims");
+            let token =
+                encode(&Header::default(), &claims, &EncodingKey::from_secret(SECRET.as_ref()))
+                    .expect("Failed to encode claims");
 
             let decoded = decode::<Claims>(
                 &token,
-                &DecodingKey::from_hmac_secret(SECRET.as_ref()),
+                &DecodingKey::from_secret(SECRET.as_ref()),
                 &Validation::default(),
             )
             .expect("Failed to decode token")
@@ -139,14 +133,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token = jsonwebtoken_rustcrypto::encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_hmac_secret(SECRET.as_ref()),
+        &EncodingKey::from_secret(SECRET.as_ref()),
     )?;
 
     println!("serialized token: {}", &token);
 
     let token_data = jsonwebtoken_rustcrypto::decode::<Claims>(
         &token,
-        &DecodingKey::from_hmac_secret(SECRET.as_ref()),
+        &DecodingKey::from_secret(SECRET.as_ref()),
         &Validation::default(),
     )?;
 

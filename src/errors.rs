@@ -80,6 +80,7 @@ pub enum ErrorKind {
     Json(serde_json::Error),
     /// Some of the text was invalid UTF-8
     Utf8(::std::string::FromUtf8Error),
+    MissingSignature,
     // /// Something unspecified went wrong with crypto
     // Crypto(::ring::error::Unspecified),
 }
@@ -87,25 +88,10 @@ pub enum ErrorKind {
 impl StdError for Error {
     fn cause(&self) -> Option<&dyn StdError> {
         match *self.0 {
-            ErrorKind::InvalidToken => None,
-            ErrorKind::InvalidSignature => None,
-            ErrorKind::InvalidEcdsaKey => None,
-            ErrorKind::InvalidRsaKey => None,
-            ErrorKind::InvalidHmacSecret => None,
-            ErrorKind::ExpiredSignature => None,
-            ErrorKind::InvalidIssuer => None,
-            ErrorKind::InvalidAudience => None,
-            ErrorKind::InvalidSubject => None,
-            ErrorKind::ImmatureSignature => None,
-            ErrorKind::InvalidAlgorithm => None,
-            ErrorKind::InvalidAlgorithmName => None,
-            ErrorKind::InvalidKeyFormat => None,
-            ErrorKind::UnsupportedAlgorithm => None,
-            ErrorKind::UnsupportedKeyType => None,
-            ErrorKind::NoWorkingKey => None,
             ErrorKind::Base64(ref err) => Some(err),
             ErrorKind::Json(ref err) => Some(err),
             ErrorKind::Utf8(ref err) => Some(err),
+            _ => None,
         }
     }
 }
@@ -113,25 +99,10 @@ impl StdError for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self.0 {
-            ErrorKind::InvalidToken
-            | ErrorKind::InvalidSignature
-            | ErrorKind::InvalidEcdsaKey
-            | ErrorKind::InvalidRsaKey
-            | ErrorKind::InvalidHmacSecret
-            | ErrorKind::ExpiredSignature
-            | ErrorKind::InvalidIssuer
-            | ErrorKind::InvalidAudience
-            | ErrorKind::InvalidSubject
-            | ErrorKind::UnsupportedAlgorithm
-            | ErrorKind::UnsupportedKeyType
-            | ErrorKind::ImmatureSignature
-            | ErrorKind::InvalidAlgorithm
-            | ErrorKind::InvalidKeyFormat
-            | ErrorKind::NoWorkingKey
-            | ErrorKind::InvalidAlgorithmName => write!(f, "{:?}", self.0),
             ErrorKind::Json(ref err) => write!(f, "JSON error: {}", err),
             ErrorKind::Utf8(ref err) => write!(f, "UTF-8 error: {}", err),
             ErrorKind::Base64(ref err) => write!(f, "Base64 error: {}", err),
+            _ => write!(f, "{:?}", self.0),
         }
     }
 }
