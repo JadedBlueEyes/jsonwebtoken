@@ -1,5 +1,5 @@
 use chrono::prelude::*;
-use jsonwebtoken_rustcrypto::{DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken_rustcrypto::{headers::JwtHeader, DecodingKey, EncodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 const SECRET: &str = "some-secret";
@@ -57,7 +57,7 @@ mod jwt_numeric_date {
         use super::super::{Claims, SECRET};
         use chrono::{Duration, TimeZone, Utc};
         use jsonwebtoken_rustcrypto::{
-            decode, encode, DecodingKey, EncodingKey, Header, Validation,
+            decode, encode, headers::JwtHeader, DecodingKey, EncodingKey, Validation,
         };
 
         #[test]
@@ -69,7 +69,7 @@ mod jwt_numeric_date {
             let claims = Claims::new(sub.clone(), iat, exp);
 
             let token = encode(
-                &Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
+                &JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
                 &claims,
                 &EncodingKey::from_secret(SECRET.as_ref()),
             )
@@ -109,9 +109,12 @@ mod jwt_numeric_date {
 
             let claims = Claims::new(sub.clone(), iat, exp);
 
-            let token =
-                encode(&Header::default(), &claims, &EncodingKey::from_secret(SECRET.as_ref()))
-                    .expect("Failed to encode claims");
+            let token = encode(
+                &JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
+                &claims,
+                &EncodingKey::from_secret(SECRET.as_ref()),
+            )
+            .expect("Failed to encode claims");
 
             let decoded = decode::<Claims>(
                 &token,
@@ -134,7 +137,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let claims = Claims::new(sub, iat, exp);
 
     let token = jsonwebtoken_rustcrypto::encode(
-        &Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
+        &JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
         &claims,
         &EncodingKey::from_secret(SECRET.as_ref()),
     )?;

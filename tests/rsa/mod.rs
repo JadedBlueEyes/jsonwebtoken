@@ -1,7 +1,9 @@
 use chrono::Utc;
 use jsonwebtoken_rustcrypto::{
     crypto::{sign, verify},
-    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
+    decode, encode,
+    headers::JwtHeader,
+    Algorithm, DecodingKey, EncodingKey, Validation,
 };
 use serde::{Deserialize, Serialize};
 
@@ -98,9 +100,12 @@ fn round_trip_claim() {
             .unwrap();
 
     for &alg in RSA_ALGORITHMS {
-        let token =
-            encode(&Header::new(alg), &my_claims, &EncodingKey::from_rsa(privkey.clone()).unwrap())
-                .unwrap();
+        let token = encode(
+            &JwtHeader::new(alg),
+            &my_claims,
+            &EncodingKey::from_rsa(privkey.clone()).unwrap(),
+        )
+        .unwrap();
         let token_data = decode::<Claims>(
             &token,
             &DecodingKey::from_rsa(pubkey.clone()).unwrap(),
@@ -108,7 +113,7 @@ fn round_trip_claim() {
         )
         .unwrap();
         assert_eq!(my_claims, token_data.claims);
-        assert!(token_data.header.kid.is_none());
+        assert!(token_data.header.jwk_set_headers.kid.is_none());
     }
 }
 
@@ -126,7 +131,7 @@ fn rsa_modulus_exponent() {
     let e = "AQAB";
 
     let encrypted = encode(
-        &Header::new(Algorithm::RS256),
+        &JwtHeader::new(Algorithm::RS256),
         &my_claims,
         &EncodingKey::from_rsa(privkey).unwrap(),
     )
@@ -154,9 +159,12 @@ fn roundtrip_with_jwtio_example_key() {
     };
 
     for &alg in RSA_ALGORITHMS {
-        let token =
-            encode(&Header::new(alg), &my_claims, &EncodingKey::from_rsa(privkey.clone()).unwrap())
-                .unwrap();
+        let token = encode(
+            &JwtHeader::new(alg),
+            &my_claims,
+            &EncodingKey::from_rsa(privkey.clone()).unwrap(),
+        )
+        .unwrap();
         let token_data = decode::<Claims>(
             &token,
             &DecodingKey::from_rsa(pubkey.clone()).unwrap(),

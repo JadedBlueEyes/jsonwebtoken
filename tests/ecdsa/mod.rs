@@ -1,7 +1,7 @@
 use chrono::Utc;
 use jsonwebtoken_rustcrypto::{
     crypto::{sign, verify},
-    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
+    decode, encode, Algorithm, DecodingKey, EncodingKey, JwtHeader, Validation,
 };
 use serde::{Deserialize, Serialize};
 
@@ -52,7 +52,7 @@ fn round_trip_claim() {
         exp: Utc::now().timestamp() + 10000,
     };
     let token = encode(
-        &Header::new(Algorithm::ES256),
+        &JwtHeader::new(Algorithm::ES256),
         &my_claims,
         &EncodingKey::from_pkcs8_ec_pem(privkey_pem).unwrap(),
     )
@@ -78,7 +78,7 @@ fn roundtrip_with_jwtio_example() {
         exp: Utc::now().timestamp() + 10000,
     };
     let token = encode(
-        &Header::new(Algorithm::ES384),
+        &JwtHeader::new(Algorithm::ES384),
         &my_claims,
         &EncodingKey::from_pkcs8_ec_pem(privkey_pem).unwrap(),
     )

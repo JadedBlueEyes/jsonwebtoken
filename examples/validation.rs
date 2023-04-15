@@ -1,5 +1,7 @@
 use jsonwebtoken_rustcrypto::errors::ErrorKind;
-use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken_rustcrypto::{
+    decode, encode, headers::JwtHeader, DecodingKey, EncodingKey, Validation,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -14,7 +16,7 @@ fn main() {
     let my_claims =
         Claims { sub: "b@b.com".to_owned(), company: "ACME".to_owned(), exp: 10000000000 };
     let token = match encode(
-        &Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
+        &JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
         &my_claims,
         &EncodingKey::from_secret(key),
     ) {

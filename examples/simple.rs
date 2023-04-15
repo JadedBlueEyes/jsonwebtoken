@@ -1,5 +1,7 @@
 use chrono::Utc;
-use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken_rustcrypto::{
+    decode, encode, headers::JwtHeader, DecodingKey, EncodingKey, Validation,
+};
 use serde::{Deserialize, Serialize};
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
@@ -18,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let token = encode(
-        &Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
+        &JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::HS256),
         &my_claims,
         &EncodingKey::from_secret("secret".as_ref()),
     )?;

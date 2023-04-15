@@ -1,5 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken_rustcrypto::{
+    decode, encode, headers::JwtHeader, DecodingKey, EncodingKey, Validation,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -15,7 +17,7 @@ fn bench_encode_hmac(c: &mut Criterion) {
     c.bench_function("bench_encode", |b| {
         b.iter(|| {
             encode(
-                black_box(&Header::new(jsonwebtoken_rustcrypto::Algorithm::HS256)),
+                black_box(&JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::HS256)),
                 black_box(&claim),
                 black_box(&key),
             )
@@ -41,7 +43,7 @@ fn bench_encode_none(c: &mut Criterion) {
     c.bench_function("bench_encode_none", |b| {
         b.iter(|| {
             encode(
-                black_box(&Header::new(jsonwebtoken_rustcrypto::Algorithm::None)),
+                black_box(&JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::None)),
                 black_box(&claim),
                 black_box(&key),
             )

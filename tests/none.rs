@@ -1,8 +1,8 @@
 use chrono::Utc;
 use jsonwebtoken_rustcrypto::dangerous_insecure_decode_with_validation;
 use jsonwebtoken_rustcrypto::{
-    dangerous_insecure_decode, decode, decode_header, encode, Algorithm, DecodingKey, EncodingKey,
-    Header, Validation,
+    dangerous_insecure_decode, decode, decode_header, encode, headers::JwtHeader, Algorithm,
+    DecodingKey, EncodingKey, Validation,
 };
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +22,7 @@ fn mismatching_algorithms_key() {
         exp: Utc::now().timestamp() + 10000,
     };
     let _ = encode(
-        &Header::new(jsonwebtoken_rustcrypto::Algorithm::None),
+        &JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::None),
         &claims,
         &EncodingKey::from_secret(b"aa"),
     )
@@ -37,7 +37,7 @@ fn mismatching_algorithms_header() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let claims = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_none());
+    let claims = encode(&JwtHeader::new(Algorithm::HS256), &my_claims, &EncodingKey::from_none());
     claims.unwrap();
 }
 
@@ -83,8 +83,8 @@ fn decode_token_wrong_algorithm() {
 fn decode_header_only() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9";
     let header = decode_header(token).unwrap();
-    assert_eq!(header.alg, Some(Algorithm::None));
-    assert_eq!(header.typ, Some("JWT".to_string()));
+    assert_eq!(header.general_headers.alg, Some(Algorithm::None));
+    assert_eq!(header.general_headers.typ, Some("JWT".to_string()));
 }
 
 #[test]

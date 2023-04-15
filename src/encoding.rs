@@ -1,7 +1,7 @@
 use serde::ser::Serialize;
 
 use crate::errors::Result;
-use crate::Header;
+use crate::headers::JwtHeader;
 use crate::{crypto, errors::ErrorKind};
 // use crate::pem::decoder::PemEncodedKey;
 use crate::serialization::b64_encode_part;
@@ -44,7 +44,7 @@ impl EncodingKey {
 ///
 /// ```rust
 /// use serde::{Deserialize, Serialize};
-/// use jsonwebtoken_rustcrypto::{encode, Algorithm, Header, EncodingKey};
+/// use jsonwebtoken_rustcrypto::{encode, Algorithm, headers::JwtHeader, EncodingKey};
 ///
 /// #[derive(Debug, Serialize, Deserialize)]
 /// struct Claims {
@@ -59,10 +59,10 @@ impl EncodingKey {
 ///
 /// // my_claims is a struct that implements Serialize
 /// // This will create a JWT using HS256 as algorithm
-/// let token = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_secret("secret".as_ref())).unwrap();
+/// let token = encode(&JwtHeader::new(Algorithm::HS256), &my_claims, &EncodingKey::from_secret("secret".as_ref())).unwrap();
 /// ```
-pub fn encode<T: Serialize>(header: &Header, claims: &T, key: &EncodingKey) -> Result<String> {
-    let alg = header.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
+pub fn encode<T: Serialize>(header: &JwtHeader, claims: &T, key: &EncodingKey) -> Result<String> {
+    let alg = header.general_headers.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
     crypto::validate_matching_key(key, alg)?;
     let encoded_header = b64_encode_part(&header)?;
     let encoded_claims = b64_encode_part(&claims)?;
@@ -81,7 +81,8 @@ mod tests {
     #[test]
     fn test_none_has_empty_sig() {
         let key = super::EncodingKey::from_none();
-        let token = super::encode(&super::Header::new(crate::Algorithm::None), &(), &key).unwrap();
+        let token =
+            super::encode(&super::JwtHeader::new(crate::Algorithm::None), &(), &key).unwrap();
         assert_eq!(token, "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.bnVsbA.");
     }
 }

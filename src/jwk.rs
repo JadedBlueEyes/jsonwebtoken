@@ -2,7 +2,7 @@
 //!
 //! ```
 //! # use chrono::Utc;
-//! use jsonwebtoken_rustcrypto::{decode, Algorithm, DecodingKey, TokenData, Validation, jwk::{JwkDecodingKey, JwkDecodingKeySet}, encode, Header, EncodingKey};
+//! use jsonwebtoken_rustcrypto::{decode, Algorithm, DecodingKey, TokenData, Validation, jwk::{JwkDecodingKey, JwkDecodingKeySet}, encode, headers::JwtHeader, EncodingKey};
 //! # use rsa::{RsaPrivateKey, pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePrivateKey};
 //! # use serde::{Serialize, Deserialize};
 //! # use serde_json::{json, Value};
@@ -27,7 +27,7 @@
 //! #
 //! // Acquire a token to validate against the set - you would be using a token from the provider.
 //! let token = encode(
-//!     &Header::new(Algorithm::RS256),
+//!     &JwtHeader::new(Algorithm::RS256),
 //!     &my_claims,
 //!     &EncodingKey::from_rsa(priv_key).unwrap(),
 //! )
@@ -161,14 +161,14 @@ impl JwkDecodingKeySet {
         // println!("{:?}", self.keys_by_id(header.kid.clone().unwrap()).iter().filter(|key| {if let Some(alg) = key.alg {
         //     alg == header.alg
         // } else {true}}).find_map(|key| {Some(decode::<serde_json::Value>(token, &key.key, &validation).unwrap())}));
-        let data = if let Some(ref kid) = header.kid {
+        let data = if let Some(ref kid) = header.jwk_set_headers.kid {
             self.keys_by_id(kid.clone())
         } else {
             self.keys.clone()
         }
         .iter()
         .filter(|key| {
-            if let (Some(alg), Some(header_alg)) = (key.alg, header.alg) {
+            if let (Some(alg), Some(header_alg)) = (key.alg, header.general_headers.alg) {
                 alg == header_alg
             } else {
                 // If alg is not set, pass, otherwise fail.

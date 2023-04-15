@@ -257,7 +257,7 @@ macro_rules! make_header {
             $(#[$item_meta:meta])* $item_name:ident,
             $value:literal,
             $docstring_head:literal,
-            $type:ident$(<$lt:tt>)?,
+            $type:ident$(<$lt:tt$(<$lt2:tt$(<$lt3:tt>)?>)?>)?,
             $($docstring_body:literal)?, $($formats:literal)?,
             $($jwe_spec:literal)?, $($jws_spec:literal)?
         )*}
@@ -266,7 +266,7 @@ macro_rules! make_header {
         $(#[$meta])*
         $vis struct $name {
             $(
-                #[serde(rename = $value, skip_serializing_if = "Option::is_none")]
+                #[serde(rename = $value)] // skip_serializing_if = "Option::is_none"
                 #[doc = $docstring_head]
                 #[doc = "\n"]
                 $(#[doc = $docstring_body])?
@@ -275,7 +275,7 @@ macro_rules! make_header {
                 $(#[doc = $jwe_spec] #[doc ="\n"] )?
                 $(#[doc = $jws_spec] #[doc ="\n"] )?
                 $(#[$item_meta])*
-                pub $item_name: Option<$type$(<$lt>)?>
+                pub $item_name: $type$(<$lt$(<$lt2$(<$lt3>)?>)?>)?
             ),*
         }
     }
@@ -283,52 +283,103 @@ macro_rules! make_header {
 
 // see web-signature-encryption-header-paramaters.csv
 make_header! {
-    /// A comprehensive JWT header.
-    /// By default, every field is empty.
-    /// WARNING: this struct is not exhaustive. Always construct with `..Default::default()`.
     #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Default)]
-    pub struct Header {
-typ,"typ","# Type",String,"The type of content encoded in the complete object (for example, JWT).","JWE, JWS","RFC7516, Section 4.1.11","RFC7515, Section 4.1.9"
-alg,"alg","# Algorithm",Algorithm,"The specific [`Algorithm`] used to encrypt or sign the object.","JWE, JWS","RFC7516, Section 4.1.1","RFC7515, Section 4.1.1"
-cty,"cty","# Content Type",String,"The type of the secured content / payload.","JWE, JWS","RFC7516, Section 4.1.12","RFC7515, Section 4.1.10"
-b64,"b64","# Base64url-Encode Payload",bool,"Whether the payload is base64 encoded. If not present, defaults to true.","JWS",,"RFC7797, Section 3"
-crit,"crit","# Critical",Vec<String>,"Any extensions to the header that MUST be understood.","JWE, JWS","RFC7516, Section 4.1.13","RFC7515, Section 4.1.11"
-url,"url","# URL",String,"The URL to which the object is directed.","JWE, JWS","RFC8555, Section 6.4.1","RFC8555, Section 6.4.1"
-nonce,"nonce","# Nonce",String,"A unique octet string that enables the verifier of a JWS to recognize when replay has occurred.","JWE, JWS","RFC8555, Section 6.5.2","RFC8555, Section 6.5.2"
-jku,"jku","# JWK Set URL",String,"A URI that refers to a JWK Set containing the public key used to sign the object.","JWE, JWS","RFC7516, Section 4.1.4","RFC7515, Section 4.1.2"
-jwk,"jwk","# JSON Web Key",Jwk,"The public key used to sign the object, represented as a JWK.","JWE, JWS","RFC7516, Section 4.1.5","RFC7515, Section 4.1.3"
-kid,"kid","# Key ID",String,"A hint indicating which key was used to secure the JWS.","JWE, JWS","RFC7516, Section 4.1.6","RFC7515, Section 4.1.4"
-iss,"iss","# Issuer",String,"The principal that issued the object.","JWE","RFC7519, Section 4.1.1",
-sub,"sub","# Subject",String,"The principal that is the subject of the object.","JWE","RFC7519, Section 4.1.2",
-aud,"aud","# Audience",Vec<String>,"The recipients that the object is intended for.","JWE","RFC7519, Section 4.1.3",
-x5u,"x5u","# X.509 URL",String,,"JWE, JWS","RFC7516, Section 4.1.7","RFC7515, Section 4.1.5"
-x5c,"x5c","# X.509 Certificate Chain",Vec<String>,,"JWE, JWS","RFC7516, Section 4.1.8","RFC7515, Section 4.1.6"
-x5t,"x5t","# X.509 Certificate SHA-1 Thumbprint",String,,"JWE, JWS","RFC7516, Section 4.1.9","RFC7515, Section 4.1.7"
-x5t_s256,"# x5t#S256","X.509 Certificate SHA-256 Thumbprint",String,,"JWE, JWS","RFC7516, Section 4.1.10","RFC7515, Section 4.1.8"
-epk,"epk","# Ephemeral Public Key",Jwk,,"JWE","RFC7518, Section 4.6.1.1",
-apu,"apu","# Agreement PartyUInfo",String,,"JWE","RFC7518, Section 4.6.1.2",
-apv,"apv","# Agreement PartyVInfo",String,,"JWE","RFC7518, Section 4.6.1.3",
-iv,"iv","# Initialization Vector",String,,"JWE","RFC7518, Section 4.7.1.1",
-tag,"tag","# Authentication Tag",String,,"JWE","RFC7518, Section 4.7.1.2",
-p2s,"p2s","# PBES2 Salt Input",String,,"JWE","RFC7518, Section 4.8.1.1",
-p2c,"p2c","# PBES2 Count",u64,,"JWE","RFC7518, Section 4.8.1.2",
-ppt,"ppt","# PASSporT extension identifier",Vec<String>,"Required extensions to parse the object.","JWS",,"RFC8225, Section 8.1"
-svt,"svt","# Signature Validation Token",Vec<String>,"An array of JWTs in string format.\n<https://www.rfc-editor.org/rfc/rfc9321.html#name-svt-header-parameter>","JWS",,"RFC9321"
+    pub struct GeneralHeaders {
+#[serde(skip_serializing_if = "Option::is_none")] typ,"typ","# Type",Option<String>,"The type of content encoded in the complete object (for example, JWT).","JWE, JWS","RFC7516, Section 4.1.11","RFC7515, Section 4.1.9"
+#[serde(skip_serializing_if = "Option::is_none")]
+alg,"alg","# Algorithm",Option<Algorithm>,"The specific [`Algorithm`] used to encrypt or sign the object.","JWE, JWS","RFC7516, Section 4.1.1","RFC7515, Section 4.1.1"
+#[serde(skip_serializing_if = "Option::is_none")]
+cty,"cty","# Content Type",Option<String>,"The type of the secured content / payload.","JWE, JWS","RFC7516, Section 4.1.12","RFC7515, Section 4.1.10"
+#[serde(skip_serializing_if = "Option::is_none")]
+b64,"b64","# Base64url-Encode Payload",Option<bool>,"Whether the payload is base64 encoded. If not present, defaults to true.","JWS",,"RFC7797, Section 3"
+#[serde(skip_serializing_if = "Option::is_none")]
+url,"url","# URL",Option<String>,"The URL to which the object is directed.","JWE, JWS","RFC8555, Section 6.4.1","RFC8555, Section 6.4.1"
+#[serde(skip_serializing_if = "Option::is_none")]
+nonce,"nonce","# Nonce",Option<String>,"A unique octet string that enables the verifier of a JWS to recognize when replay has occurred.","JWE, JWS","RFC8555, Section 6.5.2","RFC8555, Section 6.5.2"
     }
 }
 
-impl Header {
-    /// Returns a JWT header with the algorithm given
-    pub fn new(algorithm: Algorithm) -> Self {
-        Header { typ: Some("JWT".to_string()), alg: Some(algorithm), ..Default::default() }
+make_header! {
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Default)]
+    pub struct MiscProtectedHeaders {
+#[serde(skip_serializing_if = "Option::is_none")]
+crit,"crit","# Critical",Option<Vec<String> >,"Any extensions to the header that MUST be understood.","JWE, JWS","RFC7516, Section 4.1.13","RFC7515, Section 4.1.11"
+#[serde(skip_serializing_if = "Option::is_none")]
+ppt,"ppt","# PASSporT extension identifier",Option<Vec<String> >,"Required extensions to parse the object.","JWS",,"RFC8225, Section 8.1" // PASSporT MUST use the JWS Protected Header? Section 6.
+        // "zip" would also go here
     }
+}
+// svt,"svt","# Signature Validation Token",Vec<String>,"An array of JWTs in string format.\n<https://www.rfc-editor.org/rfc/rfc9321.html#name-svt-header-parameter>","JWS",,"RFC9321"
 
-    /// Converts an encoded part into the Header struct if possible
-    pub(crate) fn from_encoded(encoded_part: &str) -> Result<Self> {
-        let decoded = b64_decode(encoded_part)?;
-        let s = String::from_utf8(decoded)?;
+// JWK Set headers
 
-        Ok(serde_json::from_str(&s)?)
+make_header! {
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Default)]
+    pub struct JwkSetHeaders {
+#[serde(skip_serializing_if = "Option::is_none")]
+jku,"jku","# JWK Set URL",Option<String>,"A URI that refers to a JWK Set containing the public key used to sign the object.","JWE, JWS","RFC7516, Section 4.1.4","RFC7515, Section 4.1.2"
+#[serde(skip_serializing_if = "Option::is_none")]
+jwk,"jwk","# JSON Web Key",Option<Box<Jwk> >,"The public key used to sign the object, represented as a JWK.","JWE, JWS","RFC7516, Section 4.1.5","RFC7515, Section 4.1.3"
+#[serde(skip_serializing_if = "Option::is_none")]
+kid,"kid","# Key ID",Option<String>,"A hint indicating which key was used to secure the JWS.","JWE, JWS","RFC7516, Section 4.1.6","RFC7515, Section 4.1.4"
+    }
+}
+
+// X.509 certificate Agreement
+// see <https://www.rfc-editor.org/rfc/rfc7515#section-4.1.5>
+
+make_header! {
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Default)]
+    pub struct X509Headers {
+#[serde(skip_serializing_if = "Option::is_none")]
+x5u,"x5u","# X.509 URL",Option<String>,,"JWE, JWS","RFC7516, Section 4.1.7","RFC7515, Section 4.1.5"
+#[serde(skip_serializing_if = "Option::is_none")]
+x5c,"x5c","# X.509 Certificate Chain",Option<Vec<String> >,,"JWE, JWS","RFC7516, Section 4.1.8","RFC7515, Section 4.1.6"
+#[serde(skip_serializing_if = "Option::is_none")]
+x5t,"x5t","# X.509 Certificate SHA-1 Thumbprint",Option<String>,,"JWE, JWS","RFC7516, Section 4.1.9","RFC7515, Section 4.1.7"
+#[serde(skip_serializing_if = "Option::is_none")]
+x5t_s256,"# x5t#S256","X.509 Certificate SHA-256 Thumbprint",Option<String>,,"JWE, JWS","RFC7516, Section 4.1.10","RFC7515, Section 4.1.8"
+    }
+}
+
+// Claims that might be replicated to the header in a JWE
+// see <https://www.rfc-editor.org/rfc/rfc7519#section-5.3>
+make_header! {
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize, Default)]
+    pub struct ClaimHeaders {
+#[serde(skip_serializing_if = "Option::is_none")]
+iss,"iss","# Issuer",Option<String>,"The principal that issued the object.","JWE","RFC7519, Section 4.1.1",
+#[serde(skip_serializing_if = "Option::is_none")]
+sub,"sub","# Subject",Option<String>,"The principal that is the subject of the object.","JWE","RFC7519, Section 4.1.2",
+#[serde(skip_serializing_if = "Option::is_none")]
+aud,"aud","# Audience",Option<Vec<String> >,"The recipients that the object is intended for.","JWE","RFC7519, Section 4.1.3",
+    }
+}
+// ECDH Key Agreement
+make_header! {
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+    pub struct ECDHKeyAgreementHeaders {
+epk,"epk","# Ephemeral Public Key",Box<Jwk>,,"JWE","RFC7518, Section 4.6.1.1",
+#[serde(skip_serializing_if = "Option::is_none")]
+apu,"apu","# Agreement PartyUInfo",Option<String>,,"JWE","RFC7518, Section 4.6.1.2",
+#[serde(skip_serializing_if = "Option::is_none")]
+apv,"apv","# Agreement PartyVInfo",Option<String>,,"JWE","RFC7518, Section 4.6.1.3",
+    }
+}
+// AES GCM Key Encryption
+make_header! {
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+    pub struct AesGcmHeaders {
+iv,"iv","# Initialization Vector",String,,"JWE","RFC7518, Section 4.7.1.1",
+tag,"tag","# Authentication Tag",String,,"JWE","RFC7518, Section 4.7.1.2",
+    }
+}
+// PBES2 Key Encryption
+make_header! {
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+    pub struct Pbes2Headers {
+p2s,"p2s","# PBES2 Salt Input",String,,"JWE","RFC7518, Section 4.8.1.1",
+p2c,"p2c","# PBES2 Count",u64,,"JWE","RFC7518, Section 4.8.1.2",
     }
 }
 

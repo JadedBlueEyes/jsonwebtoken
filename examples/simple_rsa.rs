@@ -1,6 +1,6 @@
 use chrono::Utc;
 use jsonwebtoken_rustcrypto::{
-    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
+    decode, encode, headers::JwtHeader, Algorithm, DecodingKey, EncodingKey, Validation,
 };
 use rsa::{pkcs1::DecodeRsaPrivateKey, pkcs8::DecodePublicKey, RsaPrivateKey, RsaPublicKey};
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let enc_key = EncodingKey::from_rsa(priv_key)?;
     let dec_key = DecodingKey::from_rsa(pub_key)?;
 
-    let header = Header::new(Algorithm::RS256);
+    let header = JwtHeader::new(Algorithm::RS256);
 
     let my_claims = Claims {
         sub: "b@b.com".to_string(),

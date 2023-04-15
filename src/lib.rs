@@ -10,6 +10,7 @@ pub mod errors;
 mod serialization;
 mod validation;
 // JWK and JWKS types and functions
+pub mod headers;
 pub mod jwk;
 pub(crate) mod registries;
 
@@ -18,5 +19,5 @@ pub use decoding::{
     DecodingKey, TokenData,
 };
 pub use encoding::{encode, EncodingKey};
-pub use registries::{Algorithm, Header};
+pub use registries::Algorithm;
 pub use validation::Validation;

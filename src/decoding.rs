@@ -1,19 +1,29 @@
 use rsa::RsaPublicKey;
 use serde::de::DeserializeOwned;
+use serde::Deserialize;
 
 use crate::crypto::verify;
 use crate::errors::{new_error, ErrorKind, Result};
-use crate::{Algorithm, Header};
+use crate::{headers::JwtHeader, Algorithm};
 // use crate::pem::decoder::PemEncodedKey;
-use crate::serialization::from_jwt_part_claims;
+use crate::serialization::{b64_decode, from_jwt_part_claims};
 use crate::validation::{validate, Validation};
 
 use base64::{engine::general_purpose::STANDARD, Engine};
+
+/// Converts an encoded part into the Header struct if possible
+pub(crate) fn from_encoded(encoded_part: &str) -> Result<JwtHeader> {
+    let decoded = b64_decode(encoded_part)?;
+    let s = String::from_utf8(decoded)?;
+
+    Ok(serde_json::from_str(&s)?)
+}
+
 /// The return type of a successful call to [decode](fn.decode.html).
 #[derive(Debug)]
 pub struct TokenData<T> {
     /// The decoded JWT header
-    pub header: Header,
+    pub header: JwtHeader,
     /// The decoded JWT claims
     /// Note: see <https://www.iana.org/assignments/jwt/jwt.xhtml#claims> for many of the properties that you might encounter.
     pub claims: T,
@@ -98,15 +108,15 @@ pub fn decode<T: DeserializeOwned>(
     validation: &Validation,
 ) -> Result<TokenData<T>> {
     let (header, claims, signature) = expect_two_or_three!(token.splitn(3, '.'));
-    let header_decoded = Header::from_encoded(header)?;
+    let header_decoded: JwtHeader = from_encoded(header)?;
 
-    let alg = header_decoded.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
+    let alg = header_decoded.general_headers.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
 
     if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&alg) {
         return Err(new_error(ErrorKind::InvalidAlgorithm));
     }
 
-    if (header_decoded.alg == Some(Algorithm::None)) & (key.is_none()) {
+    if (alg == Algorithm::None) & (key.is_none()) {
     } else if let Some(signature) = signature {
         if !verify(signature, &[header, claims].join("."), key, alg)? {
             return Err(new_error(ErrorKind::InvalidSignature));
@@ -141,7 +151,7 @@ pub fn decode<T: DeserializeOwned>(
 /// ```
 pub fn dangerous_insecure_decode<T: DeserializeOwned>(token: &str) -> Result<TokenData<T>> {
     let (header, claims, _) = expect_two_or_three!(token.splitn(3, '.'));
-    let header = Header::from_encoded(header)?;
+    let header: JwtHeader = from_encoded(header)?;
 
     let (decoded_claims, _): (T, _) = from_jwt_part_claims(claims)?;
 
@@ -173,8 +183,8 @@ pub fn dangerous_insecure_decode_with_validation<T: DeserializeOwned>(
     validation: &Validation,
 ) -> Result<TokenData<T>> {
     let (header, claims, _) = expect_two_or_three!(token.splitn(3, '.'));
-    let header = Header::from_encoded(header)?;
-    let alg = header.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
+    let header: JwtHeader = from_encoded(header)?;
+    let alg = header.general_headers.alg.ok_or(ErrorKind::InvalidAlgorithm)?;
 
     if !validation.algorithms.is_empty() & !&validation.algorithms.contains(&alg) {
         return Err(new_error(ErrorKind::InvalidAlgorithm));
@@ -186,7 +196,7 @@ pub fn dangerous_insecure_decode_with_validation<T: DeserializeOwned>(
     Ok(TokenData { header, claims: decoded_claims })
 }
 
-/// Decode a JWT without any signature verification/validations and return its [Header](struct.Header.html).
+/// Decode a JWT without any signature verification/validations and return its [JwtHeader](struct.JwtHeader.html).
 ///
 /// If the token has an invalid format (ie 3 parts separated by a `.`), it will return an error.
 ///
@@ -196,7 +206,8 @@ pub fn dangerous_insecure_decode_with_validation<T: DeserializeOwned>(
 /// let token = "a.jwt.token".to_string();
 /// let header = decode_header(&token);
 /// ```
-pub fn decode_header(token: &str) -> Result<Header> {
+pub fn decode_header(token: &str) -> Result<JwtHeader> {
     let (header, _, _) = expect_two_or_three!(token.splitn(2, '.'));
-    Header::from_encoded(header)
+    let dec: JwtHeader = from_encoded(header)?;
+    Ok(dec)
 }

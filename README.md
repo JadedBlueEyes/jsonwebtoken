@@ -2,7 +2,7 @@
 
 - This is a [JWT] library for Rust that uses the [RustCrypto] family of crates.
 - It provides support for [many of the commonly used signing algorithms](#supported-algorithms) and allows [validation of token claims upon decoding](#validation). 
-- It is [significantly faster](#performance) than alternatives. 
+<!-- - It is [significantly faster](#performance) than alternatives.  -->
 - It also provides an implementation of [JSON Web Key Sets](#jwkS)
 
 [jwt]: https://jwt.io
@@ -23,7 +23,7 @@ serde = {version = "1", features = ["derive"] }
 
 ```rust
 use chrono::Utc;
-use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, Header, Validation, Algorithm};
+use jsonwebtoken_rustcrypto::{decode, encode, DecodingKey, EncodingKey, headers::JwtHeader, Validation, Algorithm};
 use serde::{Deserialize, Serialize};
 
 /// Our claims struct, it needs to derive `Serialize` and/or `Deserialize`
@@ -41,7 +41,7 @@ let my_claims = Claims {
 };
 
 let token =
-    encode(&Header::new(Algorithm::HS512), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
+    encode(&JwtHeader::new(Algorithm::HS512), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
 
 println!("Our encoded token: {token}");
 
@@ -62,14 +62,14 @@ println!("Our decoded token: {:?}", token_data);
 
 ```rust ignore
 // HS256
-let token = encode(&Header::new(Algorithm::HS256), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
+let token = encode(&JwtHeader::new(Algorithm::HS256), &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
 // RSA
-let token = encode(&Header::new(Algorithm::RS256), &my_claims, &EncodingKey::from_rsa(RSAPrivateKey::new(&mut rng, bits).unwrap())?)?;
+let token = encode(&JwtHeader::new(Algorithm::RS256), &my_claims, &EncodingKey::from_rsa(RSAPrivateKey::new(&mut rng, bits).unwrap())?)?;
 ```
 
 Encoding a JWT takes 3 parameters:
 
--   A header: the `Header` struct
+-   A header: the `JwtHeader` struct
 -   Some claims: your own struct
 -   A key/secret
 
@@ -117,7 +117,7 @@ All the parameters from the RFC are supported but the default header only has `t
 If you want to set the `kid` parameter or change the algorithm for example:
 
 ```rust ignore
-let mut header = Header::new(Algorithm::HS384);
+let mut header = JwtHeader::new(Algorithm::HS384);
 header.kid = Some("blabla".to_owned());
 let token = encode(&header, &my_claims, &EncodingKey::from_secret("secret".as_ref()))?;
 ```
@@ -148,7 +148,7 @@ struct Claims {
 
 By default, `exp` is required and validated, and all the others are not.
 
-#### Header validation
+#### JwtHeader validation
 
 Additionally, the header `alg` field is validated. By default, any algorithm compatible with your keys is valid. However, this can be configured to only accept specified algorithms.
 
@@ -214,6 +214,7 @@ Caveats compared to the original:
 -   No ECDSA: I didn't have a need for ECDSA or the time to research and implement EC using RustCrypto crates and I removed it to completely remove the ring dependency.
 -   HMAC signature verification doesn't use constant time comparison like Keats's original does.
 
+<!-- 
 ### Performance
 
 This crate is roughly ~30-40% faster than `jsonwebtoken`, although that is mostly incidental - performance is not the primary goal of this fork.
@@ -234,4 +235,4 @@ bench_decode            time:   [1.3172 µs 1.3287 µs 1.3430 µs]
 Found 8 outliers among 100 measurements (8.00%)
   5 (5.00%) high mild
   3 (3.00%) high severe
-```
+``` -->

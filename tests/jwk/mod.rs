@@ -47,7 +47,7 @@ fn encode_token(claims: serde_json::Map<String, serde_json::Value>) -> String {
     let key =
         jsonwebtoken_rustcrypto::EncodingKey::from_rsa(rsa::RsaPrivateKey::from_pkcs8_pem(PRIVATE_KEY).unwrap())
             .unwrap();
-    let mut header = jsonwebtoken_rustcrypto::Header::new(jsonwebtoken_rustcrypto::Algorithm::RS256);
+    let mut header = jsonwebtoken_rustcrypto::JwtHeader::new(jsonwebtoken_rustcrypto::Algorithm::RS256);
     header.kid = Some("1".to_owned());
     jsonwebtoken_rustcrypto::encode(&header, &claims, &key).unwrap()
 }

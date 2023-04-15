@@ -1,9 +1,11 @@
 use chrono::Utc;
 use jsonwebtoken_rustcrypto::dangerous_insecure_decode_with_validation;
+use jsonwebtoken_rustcrypto::headers::JwkSetHeaders;
 use jsonwebtoken_rustcrypto::{
     crypto::{sign, verify},
-    dangerous_insecure_decode, decode, decode_header, encode, Algorithm, DecodingKey, EncodingKey,
-    Header, Validation,
+    dangerous_insecure_decode, decode, decode_header, encode,
+    headers::JwtHeader,
+    Algorithm, DecodingKey, EncodingKey, Validation,
 };
 use serde::{Deserialize, Serialize};
 
@@ -37,16 +39,16 @@ fn encode_with_custom_header() {
         company: "ACME".to_string(),
         exp: Utc::now().timestamp() + 10000,
     };
-    let header = jsonwebtoken_rustcrypto::Header {
-        kid: Some("kid".to_string()),
-        ..jsonwebtoken_rustcrypto::Header::new(Algorithm::HS384)
+    let header = jsonwebtoken_rustcrypto::headers::JwtHeader {
+        jwk_set_headers: JwkSetHeaders { kid: Some("kid".to_string()), ..Default::default() },
+        ..jsonwebtoken_rustcrypto::headers::JwtHeader::new(Algorithm::HS384)
     };
     let token = encode(&header, &my_claims, &EncodingKey::from_secret(b"secret")).unwrap();
     let token_data =
         decode::<Claims>(&token, &DecodingKey::from_secret(b"secret"), &Validation::default())
             .unwrap();
     assert_eq!(my_claims, token_data.claims);
-    assert_eq!("kid", token_data.header.kid.unwrap());
+    assert_eq!("kid", token_data.header.jwk_set_headers.kid.unwrap());
 }
 
 #[test]
@@ -57,13 +59,13 @@ fn round_trip_claim() {
         exp: Utc::now().timestamp() + 10000,
     };
     let token =
-        encode(&Header::new(Algorithm::HS512), &my_claims, &EncodingKey::from_secret(b"secret"))
+        encode(&JwtHeader::new(Algorithm::HS512), &my_claims, &EncodingKey::from_secret(b"secret"))
             .unwrap();
     let token_data =
         decode::<Claims>(&token, &DecodingKey::from_secret(b"secret"), &Validation::default())
             .unwrap();
     assert_eq!(my_claims, token_data.claims);
-    assert!(token_data.header.kid.is_none());
+    assert!(token_data.header.jwk_set_headers.kid.is_none());
 }
 
 #[test]
@@ -125,7 +127,7 @@ fn encode_wrong_alg_family() {
         exp: Utc::now().timestamp() + 10000,
     };
     let claims =
-        encode(&Header::new(Algorithm::None), &my_claims, &EncodingKey::from_secret(b"secret"));
+        encode(&JwtHeader::new(Algorithm::None), &my_claims, &EncodingKey::from_secret(b"secret"));
     claims.unwrap();
 }
 
@@ -142,8 +144,8 @@ fn decode_token_with_bytes_secret() {
 fn decode_header_only() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJjb21wYW55IjoiMTIzNDU2Nzg5MCIsInN1YiI6IkpvaG4gRG9lIn0.S";
     let header = decode_header(token).unwrap();
-    assert_eq!(header.alg, Some(Algorithm::HS256));
-    assert_eq!(header.typ, Some("JWT".to_string()));
+    assert_eq!(header.general_headers.alg, Some(Algorithm::HS256));
+    assert_eq!(header.general_headers.typ, Some("JWT".to_string()));
 }
 
 #[test]

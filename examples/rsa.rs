@@ -1,6 +1,6 @@
 use chrono::Utc;
 use jsonwebtoken_rustcrypto::{
-    decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
+    decode, encode, headers::JwtHeader, Algorithm, DecodingKey, EncodingKey, Validation,
 };
 use serde::{Deserialize, Serialize};
 
@@ -38,9 +38,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // let's try with every signature scheme!
     for &alg in RSA_ALGORITHMS {
-        let token =
-            encode(&Header::new(alg), &my_claims, &EncodingKey::from_rsa(privkey.clone()).unwrap())
-                .unwrap();
+        let token = encode(
+            &JwtHeader::new(alg),
+            &my_claims,
+            &EncodingKey::from_rsa(privkey.clone()).unwrap(),
+        )
+        .unwrap();
         println!("{:?}: {}", alg, token);
         let token_data = decode::<Claims>(
             &token,
