@@ -2,8 +2,8 @@ use serde::{self, Deserialize, Serialize};
 
 // See https://www.iana.org/assignments/jose/jose.xhtml
 use crate::errors::{Error, ErrorKind, Result};
-use crate::serialization::b64_decode;
 use std::str::FromStr;
+
 macro_rules! make_values_enum {
     (   $(#[$meta:meta])*
         $vis:vis enum $name:ident {
