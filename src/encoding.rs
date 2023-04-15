@@ -72,6 +72,16 @@ pub fn encode<T: Serialize>(header: &Header, claims: &T, key: &EncodingKey) -> R
     if let Some(sig) = signature {
         Ok([message, sig].join("."))
     } else {
-        Ok(message)
+        Ok([&message, "."].concat())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_none_has_empty_sig() {
+        let key = super::EncodingKey::from_none();
+        let token = super::encode(&super::Header::new(crate::Algorithm::None), &(), &key).unwrap();
+        assert_eq!(token, "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.bnVsbA.");
     }
 }
