@@ -44,7 +44,7 @@ fn mismatching_algorithms_header() {
 #[test]
 fn decode_token() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9";
-    let claims = decode::<Claims>(token, &DecodingKey::from_none(), &Validation::default());
+    let claims = decode::<Claims>(token, &DecodingKey::from_none(), &Validation::no_expiry());
     println!("{:?}", claims);
     claims.unwrap();
 }
@@ -53,7 +53,7 @@ fn decode_token() {
 fn decode_token_invalid_signature() {
     let token =
         "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9.wrong";
-    let claims = decode::<Claims>(token, &DecodingKey::from_none(), &Validation::default());
+    let claims = decode::<Claims>(token, &DecodingKey::from_none(), &Validation::no_expiry());
     claims.unwrap();
 }
 
@@ -63,7 +63,7 @@ fn decode_token_invalid_signature_wrong_alg() {
     let token =
         "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjIzODh9.wrong";
     let claims =
-        decode::<Claims>(token, &DecodingKey::from_secret(b"secret"), &Validation::default());
+        decode::<Claims>(token, &DecodingKey::from_secret(b"secret"), &Validation::no_expiry());
     claims.unwrap();
 }
 
@@ -105,7 +105,8 @@ fn dangerous_insecure_decode_token_missing_parts() {
 #[test]
 fn dangerous_insecure_decode_token_with_validation() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9";
-    let claims = dangerous_insecure_decode_with_validation::<Claims>(token, &Validation::default());
+    let claims =
+        dangerous_insecure_decode_with_validation::<Claims>(token, &Validation::no_expiry());
     println!("{:?}", claims);
     claims.unwrap();
 }
@@ -113,7 +114,8 @@ fn dangerous_insecure_decode_token_with_validation() {
 #[test]
 fn dangerous_insecure_decode_token_with_validation_no_signature() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9";
-    let claims = dangerous_insecure_decode_with_validation::<Claims>(token, &Validation::default());
+    let claims =
+        dangerous_insecure_decode_with_validation::<Claims>(token, &Validation::no_expiry());
     println!("{:?}", claims);
     claims.unwrap();
 }
@@ -121,7 +123,8 @@ fn dangerous_insecure_decode_token_with_validation_no_signature() {
 #[test]
 fn dangerous_insecure_decode_token_with_validation_extraneous_signature() {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUiLCJleHAiOjE2ODE1MjI3MTF9.wrong";
-    let claims = dangerous_insecure_decode_with_validation::<Claims>(token, &Validation::default());
+    let claims =
+        dangerous_insecure_decode_with_validation::<Claims>(token, &Validation::no_expiry());
     println!("{:?}", claims);
     claims.unwrap();
 }

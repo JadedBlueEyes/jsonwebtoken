@@ -72,6 +72,11 @@ impl Validation {
         Validation { algorithms: vec![alg], ..Default::default() }
     }
 
+    /// Create a default validation setup without expiration validation
+    pub fn no_expiry() -> Validation {
+        Validation { validate_exp: false, ..Default::default() }
+    }
+
     /// `aud` is a collection of one or more acceptable audience members
     pub fn set_audiences<T: ToString>(&mut self, items: &[T]) {
         self.aud = Some(items.iter().map(|x| x.to_string()).collect())

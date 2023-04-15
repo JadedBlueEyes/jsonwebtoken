@@ -1,6 +1,5 @@
 use rsa::RsaPublicKey;
 use serde::de::DeserializeOwned;
-use serde::Deserialize;
 
 use crate::crypto::verify;
 use crate::errors::{new_error, ErrorKind, Result};
@@ -75,7 +74,6 @@ impl DecodingKey {
 
     /// Convenience function for JWKS implementors
     pub fn from_rsa_components(n: &str, e: &str) -> Result<Self> {
-        use crate::serialization::b64_decode;
         let n = rsa::BigUint::from_bytes_be(&b64_decode(n)?);
         let e = rsa::BigUint::from_bytes_be(&b64_decode(e)?);
         Ok(DecodingKey::Rsa(
