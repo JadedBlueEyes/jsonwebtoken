@@ -1,3 +1,5 @@
+> This repository contains BREAKING CHANGES that have not bren released on crates.io
+
 # jsonwebtoken-rustcrypto
 
 - This is a [JWT] library for Rust that uses the [RustCrypto] family of crates.
